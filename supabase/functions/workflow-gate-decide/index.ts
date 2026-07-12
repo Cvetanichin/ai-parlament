@@ -5,11 +5,11 @@
 // self-approve a gate (Parliament Core §2.4) — this endpoint is the only
 // path, and it is restricted to owner/admin (Security spec §2.2).
 //
-// Body: { workflowInstanceId, projectId, decision: "approved"|"rejected", note? }
+// Body: { workflowInstanceId, projectId, gateType: "go_no_go"|"polish", decision: "approved"|"rejected", note? }
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller, requireGateRole } from "../_shared/auth.ts";
-import { decideGate } from "../_shared/workflowEngine.ts";
+import { decideGate, GateType } from "../_shared/workflowEngine.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
@@ -18,10 +18,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { workflowInstanceId, projectId, decision, note } = body;
-    if (!workflowInstanceId || !projectId || !["approved", "rejected"].includes(decision)) {
+    const { workflowInstanceId, projectId, gateType, decision, note } = body;
+    if (!workflowInstanceId || !projectId || !["go_no_go", "polish"].includes(gateType) || !["approved", "rejected"].includes(decision)) {
       return new Response(
-        JSON.stringify({ error: { code: "bad_request", message: "workflowInstanceId, projectId, decision ('approved'|'rejected') are required" } }),
+        JSON.stringify({ error: { code: "bad_request", message: "workflowInstanceId, projectId, gateType ('go_no_go'|'polish'), decision ('approved'|'rejected') are required" } }),
         { status: 400 },
       );
     }
@@ -34,6 +34,7 @@ Deno.serve(async (req: Request) => {
       supabase: admin,
       instanceId: workflowInstanceId,
       organisationId: caller.organisationId,
+      gateType: gateType as GateType,
       decision,
       note,
       actorId: caller.userId,

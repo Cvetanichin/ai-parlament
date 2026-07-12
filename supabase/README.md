@@ -13,7 +13,8 @@ multi-tenancy, identity, staging-validation discipline.
 
 **Phase 1 (Governance Layer)** — Workflow Engine + Agent Runtime
 (`../docs/03-Parliament-Core/`), re-platforming the two ministries with real
-MVP precedent (Research, Writing).
+MVP precedent (Research, Writing). **Deployed to staging
+(`urhocsijfzkepebsmstx`) and verified**, 12 July 2026 — see Verification below.
 
 ## What's built
 
@@ -60,6 +61,44 @@ construction).
 against the actual schema, not assumed. Every Agent Invocation (including
 the demo governance loop) must be recorded against a real `projects` row.
 The three Edge Functions above all take a `projectId` for this reason.
+
+## Verification
+
+All three Edge Functions are deployed to staging and `ACTIVE` — Supabase's
+Deno bundler type-checks and resolves the full import graph at deploy time,
+so a broken import or syntax error would have failed the deploy outright,
+not just logged quietly later.
+
+**A full authenticated HTTP round-trip wasn't possible with the tools
+available this session** (no POST-capable HTTP client, no way to mint a
+test-user JWT, staging has zero `auth.users`). Instead, the actual
+sequence of database writes every function performs — `startInstance` →
+`runResearchPhase` → `decideGate('go_no_go')` → `runGovernanceLoop` →
+`decideGate('polish')` — was replayed directly against staging with a
+seeded test organisation/project, then cleaned up. Every write succeeded
+against the real constraints (`agent_runs.project_id NOT NULL`, every FK,
+every CHECK), and the resulting `workflow_instance_history` showed the
+exact expected state sequence: `pending → running → awaiting_human
+(research) → running (Go/No-Go approved) → awaiting_human (veto passed) →
+completed (Polish approved)`.
+
+**This dry run caught one real bug before it ever ran for real:**
+`decideGate` originally transitioned every approval to `completed`,
+regardless of which gate — correct for Polish, wrong for Go/No-Go, which
+needs to route back to `running` so the governance loop can be dispatched
+next. Fixed by adding an explicit `gateType: "go_no_go" | "polish"`
+parameter (matching the real MVP's per-gate `GATE_STATUS_FIELD` mapping in
+`humanGates.js`, which this port had initially collapsed into one generic
+outcome). Redeployed and re-verified — see `workflowEngine.ts`'s
+`decideGate` for the fix and its rationale.
+
+**What this does and doesn't prove:** confirmed — the schema/data model is
+correct, every constraint is satisfied, the state machine logic is
+correct, the code compiles and deploys cleanly. Not confirmed — the actual
+HTTP/JWT auth layer (`auth.ts`'s `resolveCaller`) and the LLM Gateway's
+live provider calls, since neither was exercised by this dry run. Those
+need either a real test user + session token, or a POST-capable HTTP
+client, to verify properly.
 
 ## What's NOT done yet
 

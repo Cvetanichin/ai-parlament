@@ -243,17 +243,31 @@ export async function runGovernanceLoop(params: RunGovernanceLoopParams) {
 // real Workflow Instance state machine instead of an in-memory
 // proposal.gates object. No API exists for a Workflow Definition or an
 // Agent to self-approve a gate (Parliament Core §2.4, EAS §7.2).
+//
+// gateType matters: this Phase 1 slice wires up two gates (matching
+// humanGates.js's GATE_STATUS_FIELD, which differentiates per-gate next
+// states, not one generic approve/reject outcome). Approving Go/No-Go
+// routes back to 'running' so the governance loop can be dispatched next
+// (real MVP: goNoGo -> 'drafting'); approving Polish finishes the instance
+// (real MVP: polish -> 'awaiting_submission_gate', 'completed' here since
+// this slice doesn't implement the Submission Gate). A prior version of
+// this function collapsed both into one generic completed/failed outcome —
+// caught and fixed via the staging dry run below, before this was ever
+// exercised for real.
+export type GateType = "go_no_go" | "polish";
+
 export interface DecideGateParams {
   supabase: SupabaseClient;
   instanceId: string;
   organisationId: string;
+  gateType: GateType;
   decision: "approved" | "rejected";
   note?: string;
   actorId?: string;
 }
 
 export async function decideGate(params: DecideGateParams) {
-  const { supabase, instanceId, organisationId, decision, note, actorId } = params;
+  const { supabase, instanceId, organisationId, gateType, decision, note, actorId } = params;
 
   const { data: instance, error } = await supabase
     .from("workflow_instances")
@@ -273,11 +287,24 @@ export async function decideGate(params: DecideGateParams) {
     action: "gate_decision",
     targetType: "workflow_instance",
     targetId: instanceId,
-    detail: { decision, note: note ?? null },
+    detail: { gateType, decision, note: note ?? null },
   });
 
-  const nextState: WorkflowState = decision === "rejected" ? "failed" : "completed";
-  await transition(supabase, instanceId, nextState, `Gate decision: ${decision}${note ? ` (${note})` : ""}`);
+  let nextState: WorkflowState;
+  if (decision === "rejected") {
+    nextState = "failed";
+  } else if (gateType === "go_no_go") {
+    nextState = "running"; // ready for the Writing ministry / governance loop
+  } else {
+    nextState = "completed"; // Polish gate cleared
+  }
 
-  return { instanceId, state: nextState };
+  await transition(
+    supabase,
+    instanceId,
+    nextState,
+    `${gateType} gate decision: ${decision}${note ? ` (${note})` : ""}`,
+  );
+
+  return { instanceId, gateType, state: nextState };
 }
