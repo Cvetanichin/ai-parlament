@@ -239,7 +239,7 @@ Approved:**
 
 | Spec | Notable content |
 |---|---|
-| `docs/01-Product-Vision/` | Problem statement, persona value props, explicit non-goals; deliberately does **not** decide product-facing brand naming or exact success-metric targets — flagged as your calls, not architecture's |
+| `docs/01-Product-Vision/` (now v1.1) | Problem statement, persona value props, explicit non-goals, plus (as of this session) a proposed brand — **Quorum** — and five concrete v1 success-metric targets |
 | `docs/02-Domain-Model/` | Full ER diagram (Mermaid) + entity dictionary consolidating six specs' worth of scattered entity definitions; introduces zero new entities |
 | `docs/09-Knowledge-Hub/` (renamed from "Intelligence Workspace / Knowledge Hub") | **The naming collision is resolved, per your amendment request — ADR-0008.** This application is now named Knowledge Hub, full stop; "Intelligence Workspace" refers exclusively to the existing SaaS product re-platformed into `docs/08-Project-Operations/`. EAS §3.1 and §5 were amended in place to match — the first text amendment to the EAS document itself since v1.0. Folder and spec file renamed accordingly. |
 | `docs/12-APIs/` | Gateway cross-cutting contract (versioning, auth, error shape, rate limiting) + a routing index to every endpoint's real owning spec — no contracts re-derived |
@@ -293,10 +293,63 @@ cloned staging project before promotion — this is ADR-0007's mitigation,
 not optional discipline, and it applies before the first Parliament Core
 migration is written.
 
-**Still flagged:** the Parliament Core spec's migration sections describe the
-target contract for `pmAgent.js` / `ministryAdapter.js` based on the repo's
-README, not the actual current source — raw GitHub reads returned empty
-repeatedly this session; Claude Code should diff against the real code before
-implementing. **Minor flag, not architecturally significant:** the
-Intelligence Workspace repo's own `CLAUDE.md` says Stripe; the actual code
-runs Paddle — worth a doc fix whenever convenient.
+~~**Still flagged:**~~ the Parliament Core spec's migration sections
+described the target contract for `pmAgent.js`/`ministryAdapter.js` based
+on the repo's README, not the actual current source — raw GitHub reads
+returned empty repeatedly. **Resolved in Session 3** (see below): the real
+source was found locally instead and read in full; no diff against GitHub
+was ever needed. **Minor flag, not architecturally significant, still
+open:** the Intelligence Workspace repo's own `CLAUDE.md` says Stripe; the
+actual code runs Paddle — worth a doc fix whenever convenient.
+
+## Session 4 — Staging Fully Migrated, Product Vision's Open Items Closed
+
+**Every migration in `docs/11-Database-Schema/` §1–§16 is now applied to
+staging, not just approved on paper.** Connected directly to Supabase and
+ran all ten migrations (`01_multi_tenancy` through `10_performance_
+hardening`) against `Consultancy Dashboard - Staging`
+(`urhocsijfzkepebsmstx`) — the project that, until this session, mirrored
+production's original 12 tables and nothing else. It now has all 40 tables
+this platform's approved specs call for, full RLS coverage, and **zero
+security advisor lints**. Full record, including three deliberate
+deviations from the spec text (all improvements, not corrections — a
+generalised multi-table backfill, `agent_runs`' append-only revoke
+correctly held back pending its still-undecided security-definer-function
+mechanism, and a from-scratch performance pass) is in Database Schema §17.
+
+**The performance pass wasn't optional cleanup — it found 204 real lints**
+(zero `ERROR`) after the first nine migrations: 83 RLS policies re-evaluating
+`auth.uid()` per row instead of once, and 69 foreign keys with no covering
+index. Both are exactly what Supabase's own advisor flags as the standard
+"wrote it correctly but not performantly" pattern, and both got fixed in one
+more migration rather than left as a known issue. What's left (121 lints) is
+entirely expected: unused-index notices on tables with zero rows, and the
+multiple-permissive-policies warning that's the direct, intended consequence
+of the dual-RLS design the spec itself called for.
+
+**Production (`Consultancy Dashboard`, `jorpfsrvhnelnboupiyx`) was not
+touched.** Staging passing cleanly is what that discipline (ADR-0007) exists
+to produce — it's a precondition for asking about production, not a reason
+to skip asking.
+
+**`docs/01-Product-Vision/`'s two open items are closed, not left for later**
+— you asked for inventive answers, not another deferral:
+
+- **Brand name: Quorum.** A quorum is literally the minimum presence
+  required before a body can act — which is what the four Human Gates
+  already enforce mechanically. Reads as credible in EU/UNDP donor contexts,
+  carries no political baggage the way "Parliamentary AI" risks in front of
+  a donor, and works as a prefix for every existing application name
+  without renaming any of them (Quorum Grant Studio, Quorum Project
+  Operations, Quorum Knowledge Hub). Working tagline: *"Nothing proceeds
+  without quorum."* Proposed, not locked in — flagged for explicit sign-off
+  before it appears anywhere external.
+- **Five concrete v1 success-metric targets**, each tied to a Roadmap phase
+  and an existing data source (no new instrumentation needed): ≥50%
+  reduction in late-caught compliance defects, ≥30% faster proposal cycle
+  time, ≥40% institutional-knowledge reuse, 100% platform adoption for new
+  proposals, ≥80% of invocations on cost-efficient models. Win rate stays
+  tracked-not-targeted, for the reason already given — too confounded by
+  factors outside the platform's control to be a fair target.
+
+Product Vision is now **v1.1**.

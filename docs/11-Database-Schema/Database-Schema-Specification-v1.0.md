@@ -1,7 +1,7 @@
 ---
 document: Database Schema Specification
 version: 1.5
-status: APPROVED — approved by Product Owner 12 July 2026; v1.5 folds in follow-on migrations from AI Governance (§16); §14's 3 remaining items (JSONB scope, agent_runs status-update mechanism, PITR window) are tracked follow-ups deferred to future review, not blockers to implementation
+status: APPROVED — approved by Product Owner 12 July 2026; v1.5 folds in follow-on migrations from AI Governance (§16); §14's 3 remaining items (JSONB scope, agent_runs status-update mechanism, PITR window) are tracked follow-ups deferred to future review, not blockers to implementation. **§1-§16 fully applied to staging** (`Consultancy Dashboard - Staging`, 12 July 2026, migrations `01_multi_tenancy` through `10_performance_hardening`) — 40 tables, full RLS coverage, zero security advisor lints. Production (`Consultancy Dashboard`, `jorpfsrvhnelnboupiyx`) remains untouched pending explicit go-ahead.
 parent: ../../00-EAS-v1.0.md (EAS §4 domain model, §13 priority 3)
 related_adrs: ../21-ADRs/0005-multi-tenancy-built-in-day-one.md, ../21-ADRs/0006-vector-store-pgvector.md, ../21-ADRs/0007-supabase-as-layer-4-backbone.md
 consolidates: EAS §4, Grant Studio spec §2-§11, Regulatory Knowledge Layer spec §5, Parliament Core spec §2.6/§3.6, Project Operations spec §1-§7, Platform Services spec §1-§5, Knowledge Platform spec §3/§6, House of Parliament spec §7, Security spec §5/§7, Grant Studio spec §3.1/§6.1/§8.1/§9.1/§10.1, AI Governance spec §1.2/§2.1
@@ -803,3 +803,87 @@ create table public.ai_app_register (
 Same staging-validation discipline as §15 applies — none of this touches an
 existing column, but `agent_runs` is a real, live table and the new column
 must be validated on a branch first.
+
+## 17. Staging Application Record — 12 July 2026
+
+Per §0/§8's mandatory staging-validation discipline (ADR-0007), §1–§16 above
+have been applied in full against `Consultancy Dashboard - Staging`
+(`urhocsijfzkepebsmstx`), the project `docs/19-Deployment/` provisioned for
+exactly this purpose. **This is the first time any of this document's DDL
+has actually been migrated anywhere** — everything before this section was
+approved specification, not applied schema.
+
+**Migrations, in dependency order** (Supabase CLI-style, matching this
+document's own section numbering):
+
+| Migration | Spec section |
+|---|---|
+| `01_multi_tenancy` | §1 |
+| `02_agent_runtime_workflow_engine` | §3 |
+| `03_regulatory_knowledge_layer` | §4 |
+| `04_grant_studio_domain` | §5 |
+| `05_knowledge_platform` | §6, §13 |
+| `06_audit_log` | §7 |
+| `07_platform_services` | §11 |
+| `08_house_of_parliament_security_grant_studio_followons` | §15 |
+| `09_ai_governance_followons` | §16 |
+| `10_performance_hardening` | (below) |
+
+**Deviations from the spec text, made during application, all logged here
+rather than silently:**
+
+- **§1's backfill** was generalised to cover `clients.created_by` as well
+  as `projects.created_by` — the spec's own §1b comment flagged this as
+  "illustrative... Claude Code should write this as a proper migration
+  script keyed on actual distinct `created_by` values across all
+  owner-scoped tables." Done.
+- **§1's dual RLS pattern** ("Claude Code should generate the specific
+  `ALTER POLICY`/`CREATE POLICY` statements per table") is implemented as
+  an **additional permissive policy per table**, not an edit to the
+  existing owner-scoped policy — Postgres OR's multiple permissive
+  policies together automatically, which satisfies "existing policy stays"
+  literally rather than by convention.
+- **§4's vector extension**: installed into a dedicated `extensions`
+  schema, not `public` — matching the fix already applied to this same
+  staging project in the prior session's hardening pass (README §8), so
+  this migration doesn't reintroduce a finding that was already fixed once.
+- **§7's `agent_runs` append-only revoke was deliberately skipped.** §14
+  leaves the security-definer status-transition function mechanism as an
+  unresolved open item; revoking `UPDATE` now would break the real, live
+  edge functions' existing calling convention, including in this staging
+  environment. `audit_events`, `compliance_findings`, and
+  `workflow_instance_history` were revoked as specified — only the
+  `agent_runs` exception is held pending that mechanism's design.
+- **§15.3's `reports.report_type` constraint** was split into two steps
+  (migration `04`, matching §5.1's original 3-value constraint; migration
+  `08`, extending to 5 values matching §15.3) rather than applied once —
+  this made each migration match its owning spec section literally. No
+  behavioural difference in the end state.
+- **RLS policies were added for `eligibility_reports`, `submission_
+  packages`, `cost_rollups`, and `ai_app_register`**, which §15/§16's DDL
+  didn't show explicitly (the spec text focused on table shape). Every
+  tenant-scoped table gets RLS per ADR-0005 without exception — omitting
+  it here would have been a real gap, not a faithful reading of the spec's
+  intent.
+
+**Performance hardening (migration `10`, not previously specified anywhere
+— a genuine addition, not a spec deviation):** running the security and
+performance advisors after migrations `01`–`09` surfaced 204 lints, zero
+`ERROR`-level, split across `auth_rls_initplan` (83), `unindexed_foreign_
+keys` (69), `multiple_permissive_policies` (27, expected — the direct
+consequence of the dual-RLS design above, not a defect), and `unused_index`
+(25, expected — every table has zero rows). The first two categories are
+real and cheap to fix, so migration `10` did: wrapped every `auth.uid()`
+call added by migrations `01`–`09` in `(select auth.uid())` (Supabase's
+documented `auth_rls_initplan` fix — pre-existing policies already used
+this pattern; only the new ones needed it), and added a covering `btree`
+index on every new foreign-key column. Post-fix: **zero security lints,
+121 performance lints remaining, all `unused_index` (expected, zero data)
+or `multiple_permissive_policies` (expected, by design).**
+
+**Production (`Consultancy Dashboard`, `jorpfsrvhnelnboupiyx`) has not been
+touched.** Promoting this identical migration sequence to production is
+held for explicit Product Owner go-ahead, per the standing discipline this
+document has stated since v1.0 — staging validation completing
+successfully is a precondition for that promotion, not a substitute for
+asking first.

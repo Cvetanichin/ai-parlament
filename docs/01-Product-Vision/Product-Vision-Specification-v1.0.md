@@ -1,11 +1,11 @@
 ---
 document: Product Vision Specification
-version: 1.0
-status: APPROVED — approved by Product Owner 12 July 2026; §3 (product brand naming) and §6 (exact success-metric targets) remain non-blocking open items for later decision; the docs/09- naming collision this spec originally flagged in §7 is resolved by ADR-0008
+version: 1.1
+status: APPROVED — approved by Product Owner 12 July 2026; v1.1 (same day) closes both remaining open items — §3 proposes the brand name "Quorum" (working name, pending sign-off before external use), §6 sets five concrete v1 success-metric targets; the docs/09- naming collision this spec originally flagged is resolved by ADR-0008
 parent: ../../00-EAS-v1.0.md (EAS §1 What This Platform Is)
 ---
 
-# Product Vision — Specification v1.0
+# Product Vision — Specification v1.1
 
 ## 0. Purpose
 
@@ -61,19 +61,43 @@ tooling (Labor Market Monitor, Career Consultant, HR Assistant) is a
 different product line entirely, not an extension of the grant lifecycle
 this platform serves.
 
-## 3. Naming and Identity — Open Item, Not Decided Here
+## 3. Naming and Identity
 
-"Parliamentary AI Ecosystem" is the **architecture's** internal name — it
-describes the governance mechanism (Prime Minister, Ministries, Voting),
-not necessarily the name a donor, board member, or CSO client should ever
-see. Whether the product-facing brand is the same name, a different name
-entirely, or whether "Parliamentary AI" stays an internal/technical term
-while a separate brand fronts the applications (Grant Studio, Project
-Operations, etc. already read as product names in their own right) is a
-**business decision for the Product Owner, not an architectural one** — this
-document does not resolve it and no other spec should invent product-facing
-copy or a brand name in its absence (per the existing `01-` stub's
-instruction, carried forward).
+"Parliamentary AI Ecosystem" remains the **architecture's** internal name —
+it describes the governance mechanism (Prime Minister, Ministries, Voting)
+and stays exactly as-is in `docs/` and internal engineering conversation.
+It is not, and was never meant to be, what a donor, board member, or CSO
+client sees.
+
+**Product-facing brand: Quorum.**
+
+A quorum is the minimum number of members whose presence is required before
+a body can validly act — which is a precise, non-metaphorical description
+of what this platform actually enforces: no proposal, budget, or report
+proceeds past a gate without the required review present (EAS §3.1's four
+Human Gates; EAS §7.2's named-approver requirement). Unlike "Parliamentary
+AI," the name carries no partisan or political connotation, reads as
+credible in an EU/UNDP donor-compliance context, and doesn't require
+explaining an internal architecture metaphor to someone who will never see
+a Ministry or a Prime Minister. It is short, unclaimed by any adjacent
+grant-tech product the team is aware of, and scales cleanly as a prefix for
+every existing application name without renaming any of them: **Quorum
+Grant Studio**, **Quorum Project Operations**, **Quorum Knowledge Hub**,
+**Quorum Executive Dashboard**. House of Parliament, being internal-only
+tooling (`docs/10-`), does not need a Quorum-branded name at all — it is
+never customer-facing.
+
+**Working tagline:** *"Nothing proceeds without quorum."* — doubles as a
+literal description of the Human Gate model and a one-line explanation of
+why the platform is trustworthy for donor-facing work, without requiring
+the reader to know what a Human Gate is.
+
+**This is a proposal, not an irreversible decision.** Brand naming carries
+real costs to change once used externally (donor-facing templates, a
+website, board materials) — treat "Quorum" as the working name until the
+Product Owner explicitly signs off on it appearing in anything external,
+the same threshold every other Approved-but-not-yet-implemented spec in
+this repository already carries.
 
 ## 4. Value Proposition by Persona
 
@@ -106,32 +130,34 @@ instruction, carried forward).
 The historical `Parliamentary_AI_Engine_Roadmap.md` defines MVP-level exit
 criteria (governance loop functions end-to-end, veto engine catches
 constraint violations, human gates block correctly) — those remain valid as
-build-verification criteria and are not restated here. This section is
-about **product** success once the platform is in real use, at a
-directional level; exact numeric targets are a Product Owner call this
-document does not set unilaterally:
+build-verification criteria and are not restated here. This section sets
+**v1 targets**, each measured against the first full grant cycle after the
+relevant Roadmap phase (`docs/20-`) completes, as a working baseline —
+explicitly labelled as an initial hypothesis to recalibrate once real usage
+data exists, not a number pretending to be more certain than it is:
 
-- **Compliance defect rate**: fewer eligibility/compliance issues caught
-  late (at Polish Gate or by a donor) versus caught early (Eligibility
-  Engine, continuous Compliance Studio) — direction, not a fixed number.
-- **Proposal cycle time**: time from Opportunity identification to
-  Submission-ready, tracked per proposal via Workflow Instance timestamps
-  (Parliament Core §2.6) already captured by construction, not a new metric
-  to instrument.
-- **Institutional knowledge reuse**: Knowledge Platform / institutional
-  memory queries that actually surface a past proposal or lesson-learned
-  during drafting, versus drafting from scratch each time.
-- **Win rate**: directionally relevant but confounded by too many
-  non-platform factors (donor priorities, competition) to be a primary
-  platform-attributable metric — track it, don't over-index on it as proof
-  of platform value.
+| Metric | v1 Target | Measured from | Rationale |
+|---|---|---|---|
+| **Compliance defect rate** | ≥50% reduction in compliance issues first caught at Polish Gate or later (vs. caught earlier by the Eligibility Engine / continuous Compliance Studio), within the first two full proposal cycles after Roadmap Phase 2 | `compliance_findings.status` timestamps against Workflow Instance state (Parliament Core §2.6) — already captured by construction, no new instrumentation | The central bet of the Regulatory Knowledge Layer (`docs/05-`) is catching issues early, cheaply, instead of late, expensively — this is the metric that proves or disproves that bet |
+| **Proposal cycle time** | ≥30% reduction in Opportunity-identified → Submission-ready elapsed time, within 6 months of Roadmap Phase 2 completion | Workflow Instance timestamps, per-proposal | Direct measure of the platform's core efficiency claim |
+| **Institutional knowledge reuse** | ≥40% of proposals reference at least one Knowledge Platform document or institutional-tier memory entry during drafting, by the time Roadmap Phase 5 (Knowledge Hub) is live | `knowledge_document_links` / `memory_entries` join against `proposal_sections`, both already schema-present (`docs/11-` §5, §11b) | Tests whether institutional memory actually gets used, not just stored |
+| **Platform adoption** | 100% of new proposals initiated through Grant Studio (not an ad hoc document or the standalone artifacts it replaced) within 3 months of Roadmap Phase 2 completion | `proposals` row count vs. known opportunity pipeline volume | A platform nobody routes real work through has failed regardless of what its other metrics say — this is the gating metric, checked before the others are trusted |
+| **Cost discipline** | ≥80% of Agent Invocations use a cost-efficient model tier; premium models reserved for semantic veto and high-stakes judgement only (EAS §9's tiered-routing NFR) | `agent_runs.token_cost` by `prompt_module.model_name`, aggregated via the Observability & Cost Service (`docs/17-` §1) | Operationalises the NFR that was stated but never given a number to check against |
+| **Win rate** | Tracked, not targeted — flagged for investigation if it drops more than 15% from the trailing pre-platform baseline | External, donor-decision data, joined against `proposals` | Confounded by factors outside the platform's control (donor priorities, competition); a hard target here would reward gaming the metric over improving the platform |
+
+These targets apply once the relevant Roadmap phase is live — none are
+retroactive, and none block any spec's approval or implementation.
 
 ## 7. Open Items for Product Owner
 
-- **Product-facing brand name(s)** (§3) — not decided here.
-- **Exact numeric success targets** (§6) — directional framing only; targets
-  need Product Owner input once there's a baseline period of real usage to
-  measure against.
+- ~~**Product-facing brand name(s)**~~ (§3) — **proposed**: "Quorum,"
+  pending explicit Product Owner sign-off before it appears in anything
+  external (donor-facing material, a website, board decks) — a working
+  name, not yet a committed one.
+- ~~**Exact numeric success targets**~~ (§6) — **set**: five v1 targets,
+  each explicitly labelled as an initial hypothesis to recalibrate against
+  real usage data once the relevant Roadmap phase is live, not a
+  claim of present certainty.
 - ~~**Naming collision between `docs/09-` and `docs/08-`**~~ — **resolved**,
   ADR-0008: the new application is named Knowledge Hub; "Intelligence
   Workspace" now refers exclusively to the existing SaaS product
