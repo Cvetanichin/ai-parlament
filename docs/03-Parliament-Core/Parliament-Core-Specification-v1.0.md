@@ -1,25 +1,66 @@
 ---
 document: Parliament Core Specification — Workflow Engine & Agent Runtime
 version: 1.0
-status: DRAFT — §2.3.1 (Vote of No Confidence threshold) confirmed 12 July 2026; remaining sections pending Product Owner approval, notably §7's queue-backend question and the source-grounding caveat in §0
+status: APPROVED — approved by Product Owner 12 July 2026; §0 source-grounding caveat resolved against the real MVP source (found locally, `~/Downloads/parliamentary-ai-mvp/`, not via GitHub); §7's queue-backend question remains a non-blocking follow-up deferred to docs/15-Infrastructure/
 parent: ../../00-EAS-v1.0.md (EAS §3.2 Layer 2, §3.3 Layer 3 service catalog, §11 repo restructuring, §13 priority 1)
 existing_assets: backend/agents/pmAgent.js, backend/agents/ministryAdapter.js, backend/agents/vetoEngine.js, backend/agents/humanGates.js (parliamentary-ai-gov repo)
 ---
 
 # Parliament Core — Workflow Engine & Agent Runtime — Specification v1.0
 
-## 0. Note on Source Grounding
+## 0. Note on Source Grounding — RESOLVED 12 July 2026
 
-This spec's migration sections (§2.8, §3.8) describe the **target contract** the
-existing MVP code should be re-platformed to, based on the architecture map and
-behaviour already documented in the repo's `README.md` (Vote of No Confidence
-loop, Ministry Adapter shape, four human gates, append-only audit log) and the
-`Parliamentary_AI_Engine_Roadmap.md` technical architecture section. The actual
-current source of `pmAgent.js`, `ministryAdapter.js`, `vetoEngine.js`, and
-`humanGates.js` was not readable at spec time. **Claude Code must diff this
-spec against the real file contents before implementing** and raise an ADR if
-the real code's actual behaviour conflicts with what's described here — do not
-silently follow either the spec or the code when they disagree.
+**Previously blocked, now resolved.** GitHub reads of `pmAgent.js`,
+`ministryAdapter.js`, `vetoEngine.js`, and `humanGates.js` returned empty
+repeatedly in the prior session. The real source was located locally instead
+(`~/Downloads/parliamentary-ai-mvp/`, an unzipped copy of the repo, plus
+`backend/server.js`, `backend/store.js`, `backend/llm/geminiClient.js`,
+`backend/agents/researchMinistry.js`, `backend/agents/writingMinistry.js` —
+every backend file) and read in full against this spec.
+
+**Verdict: the spec's migration sections (§2.8, §3.8), built from the
+README and roadmap description alone, turned out to match the real code
+closely — this is a confirmation pass with small precision fixes, not a
+redesign.** Specifically confirmed correct as originally written:
+
+- `pmAgent.js`'s `MAX_ATTEMPTS = 2` — exactly matches ADR-0003's confirmed
+  `voteOfNoConfidenceThreshold` default of `2`. The default was not a guess;
+  it is the literal existing constant.
+- The Vote of No Confidence sequence (forced context reset — no prior draft
+  carried forward, only the structured error log — then error-log injection,
+  then rewrite, capped at the threshold, then escalate) — `pmAgent.js`'s
+  `runGovernanceLoop` matches §2.3 almost verbatim, down to the "forced
+  context reset" and "error log injection" terminology, which come directly
+  from the code's own comments, not an inference.
+- `humanGates.js`'s four gates, `GATE_ORDER`, and status-transition
+  behaviour — exact match to §2.4 and the EAS §3.1 Human Gates list.
+- `vetoEngine.js`'s three tiers (deterministic: length/character-limit;
+  lexical: required-keyword coverage; semantic: LLM-as-judge with an
+  explicit "you are a DIFFERENT role from the drafting agent" instruction in
+  its own prompt) — exact match to §2.3 and EAS §3.2's veto description,
+  including the deliberate-separate-persona design intent.
+- `ministryAdapter.js`'s `createLlmMinistry({name, buildPrompt, mockRun,
+  parseResponse})` shape — exact match to §3.1's Ministry Adapter contract
+  description.
+
+**Small precision fixes made to this spec as a result** (not conflicts —
+refinements): §2.3's confidence heuristic is now the real one, not a
+placeholder (§2.3.2, new); §2.4 now cites the real gate-blocking enforcement
+mechanism from `server.js` (§2.4, revised); §2.8 point 4 now describes the
+real per-proposal (not global) audit log shape. See those sections for
+detail. **No ADR was required** — nothing here contradicts the approved
+spec severely enough to constitute an architecture change; this is the
+spec catching up to source, which §0 always anticipated as the likely
+outcome.
+
+**One scope clarification surfaced by reading the real code:** the MVP only
+implements two of the nine v1 Ministries (EAS §3.2) — Research and Writing.
+Finance & Administration, Compliance (beyond `vetoEngine.js`'s Layer-2-only
+veto logic), M&E, Reporting, Procurement, Fundraising (beyond the standalone
+scraper artifact), and Development have **no existing code precedent** —
+they are net-new Layer 2 ministries built to the Ministry Adapter contract
+from scratch, not re-platformed from anything. Implementers should not
+assume undiscovered source exists for these; there isn't any.
 
 ## 1. Purpose and Position in the Architecture
 
@@ -117,6 +158,28 @@ while letting a future Workflow Definition (e.g. a lower-stakes internal
 document vs. a donor submission) set a different threshold without a code
 change.
 
+### 2.3.2 Confidence Scoring (confirmed against real `pmAgent.js`)
+
+The confidence heuristic is not a placeholder to design later — it already
+exists in `runGovernanceLoop` and this spec adopts it as the Workflow
+Engine's baseline algorithm rather than inventing a new one:
+
+| Outcome | Confidence |
+|---|---|
+| Veto passed on the first attempt (no Vote of No Confidence triggered) | `high` |
+| Veto passed after one or more Vote of No Confidence rewrite cycles | `medium` |
+| Veto never passed within the threshold (escalated to Polish Gate) | `low` |
+
+This is a three-value categorical signal, not a numeric score, and it is
+computed once per Workflow Instance at the point the Task either clears the
+veto or exhausts its retry budget — not a running per-attempt metric. The
+Observability & Cost Service (`docs/17-AI-Governance/`) consumes this value
+as one input among others (it does not replace the finer-grained
+`compliance_findings.status` or extraction-confidence values used elsewhere
+in the platform, e.g. Regulatory Knowledge Layer §8's 0–1 scale) — Workflow
+Engine confidence is coarse by design, matching what the real code actually
+computes.
+
 ### 2.4 Human Gate Integration
 
 A Workflow Instance entering `awaiting_human` writes a Gate Request record
@@ -128,6 +191,16 @@ the gate is the only input that can transition a Workflow Instance out of
 `awaiting_human`. No API exists for a Workflow Definition or an Agent to
 self-approve a gate — this is enforced at the Workflow Engine level, not left
 to ministry discipline, per EAS §7.2.
+
+**Confirmed real enforcement mechanism** (`backend/server.js`): the MVP
+already blocks gate progression server-side with a `409` response, not just
+client-side UI discipline — `POST /api/proposals/:id/gates/goNoGo` rejects
+`decision: "approved"` with `409` unless `proposal.researchResult` already
+exists, and `POST /api/proposals/:id/run` (the governance loop) rejects with
+`409` unless the Go/No-Go gate's status is `approved`. The Workflow Engine's
+target contract is this same pattern, generalised: a Gate transition or a
+Task dispatch that has an unmet precondition returns a structured error, it
+does not silently no-op or proceed.
 
 ### 2.5 Task Queue & Scheduling
 
@@ -209,16 +282,22 @@ sequence. Re-platforming means:
    behaviour (nothing proceeds without human sign-off), formalised as a
    platform contract every Workflow Definition inherits instead of something
    each workflow author has to remember to call.
-4. `store.js`'s in-memory audit log becomes the Workflow Instance `history`
-   array (§2.6), persisted to PostgreSQL per `docs/11-Database-Schema/`
-   instead of resetting on restart.
+4. `store.js`'s audit log is **per-proposal** (`proposal.auditLog`, an array
+   on each in-memory proposal record, appended to by `logEvent(proposalId,
+   actor, action, detail)`), not a single global log — confirmed against
+   real source, refining what §0 previously left uncertain. This maps
+   cleanly onto the Workflow Instance `history` array (§2.6), which is
+   already per-instance by construction, persisted to PostgreSQL per
+   `docs/11-Database-Schema/` §7's append-only audit table instead of
+   resetting on restart. No structural change to this migration point was
+   needed — the real shape was already instance-scoped, matching the
+   target.
 
-Claude Code should confirm this mapping against the actual current
-implementation of `runGovernanceLoop` before writing the Workflow Engine, per
-§0 — the loop as documented (context reset → error injection → rewrite →
-escalate) matches §2.3 closely enough that this is expected to be a
-re-expression, not a redesign, but that must be verified against real code,
-not assumed from the README description alone.
+**Confirmed against real source (§0):** the loop as documented (context
+reset → error injection → rewrite → escalate) matches `pmAgent.js`'s
+`runGovernanceLoop` almost verbatim, including matching terminology in the
+code's own comments. This is a re-expression as a Workflow Definition, not
+a redesign.
 
 ## 3. Agent Runtime
 
@@ -342,6 +421,12 @@ What changes:
    whole gateway — the gateway's multi-provider abstraction is new; the
    Gemini-calling code inside it is retained.
 
+**Confirmed against real source (§0):** `geminiClient.js`'s
+`generateText(prompt, { mock })` — call the real model if `GEMINI_API_KEY`
+is set, fall back to the caller-supplied `mock()` function otherwise, model
+pinned to `gemini-1.5-pro` — is exactly the shape point 1 and point 3
+describe. No changes to this migration section were needed.
+
 ## 4. Interaction Model
 
 ```
@@ -385,12 +470,18 @@ ministry's mechanism, EAS §3.2) but its three tiers call out to Layer 3:
 
 ## 7. Open Items for Product Owner
 
-- **Queue backend** (§2.5) — confirm Redis + BullMQ, or defer to
-  `docs/15-Infrastructure/`.
-- Confirm whether Committees (EAS §3.2, cross-ministry review bodies like the
-  Consortium Review Committee implied by Grant Studio's Consortium Builder,
-  ADR-0001) are modelled as a special Workflow Definition pattern (multiple
-  ministries as parallel Tasks with a joint Gate) or need a distinct Workflow
-  Engine concept — this spec currently assumes the former and does not
-  introduce a separate "Committee" primitive; flag if that is insufficient
-  once `docs/08-Project-Operations/` is written.
+- **Queue backend** (§2.5) — Redis + BullMQ remains the confirmed default
+  pending `docs/15-Infrastructure/` confirmation; tracked as a non-blocking
+  follow-up (that spec is already `SPECIFIED`, deployment-runbook detail not
+  yet finalised), not a blocker to implementing this spec's data contracts
+  and API surfaces.
+- ~~**Committee modelling**~~ — **resolved**: the Workflow Definition
+  pattern (multiple ministries as parallel Tasks with a joint Gate, no
+  separate "Committee" primitive) is confirmed sufficient. Both Grant
+  Studio Committees now specified — the pre-award Research+Compliance
+  Consortium Builder Committee (Grant Studio spec §4) and the post-award
+  Partner Management Committee (Grant Studio spec §4.3, Procurement +
+  Finance & Administration + Compliance + M&E) — are described purely in
+  these terms with no request for a distinct primitive, confirming this
+  spec's original assumption held once the dependent specs were actually
+  written.

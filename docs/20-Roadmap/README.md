@@ -1,10 +1,15 @@
 ---
-status: not yet specified
+status: SPECIFIED — DRAFT, pending Product Owner approval — see Roadmap-Specification-v1.0.md
 eas_reference: EAS v1.0 §13 (Immediate Next Specifications)
 ---
 # 20 — Roadmap
 
-Scope: phased build sequence once specs in priority order (EAS §13) are approved.
-Supersedes the phase table in the historical Parliamentary_AI_Engine_Roadmap.md,
-which remains as background context but is no longer the authoritative sequencing
-document — this folder is.
+Full specification: `Roadmap-Specification-v1.0.md` — six phases (Foundation
+→ Governance Layer → Grant Studio Pre-Award → Post-Award → Operator
+Tooling/Security → Knowledge Hub/AI Governance), sequenced by actual
+dependency rather than spec-folder number. Flags one real sequencing risk:
+the PII pre-prompt filter (`docs/16-Security/` §4) lands in Phase 4 by
+ministry-tooling grouping, but ingestion that could touch beneficiary PII
+starts in Phase 1 — recommends pulling the filter's ingestion-side stage
+earlier. No calendar dates or sprint counts — those need team-capacity
+input this document doesn't have.

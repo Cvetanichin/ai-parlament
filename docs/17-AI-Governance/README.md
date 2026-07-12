@@ -1,11 +1,15 @@
 ---
-status: not yet specified
-eas_reference: EAS v1.0 §7 (Governance & AI-Risk Model)
+status: SPECIFIED — DRAFT, pending Product Owner approval — see AI-Governance-Specification-v1.0.md
+eas_reference: EAS v1.0 §7 (Governance & AI-Risk Model), §3.3 (Observability & Cost Service)
 ---
 # 17 — AI Governance
 
-Scope: AI App Register schema and populated entries per application/ministry,
-EU AI Act deployer-obligation documentation, DPIA template, human oversight
-matrix per decision point, explainability measures, transparency matrix per
-stakeholder group, incident response playbook. Baseline: the ProposalAI Pro
-Governance Blueprint (see EAS §8 asset map) — adapt, do not rewrite from zero.
+Full specification: `AI-Governance-Specification-v1.0.md` — also the
+confirmed home of the Observability & Cost Service (EAS §3.3's table
+assigns it here, Platform Services explicitly scoped it out). Covers the
+AI App Register schema and initial entries, human oversight matrix, EU AI
+Act obligation-to-logging mapping, transparency matrix, DPIA template, and
+an AI-specific incident response playbook. New DDL
+(`agent_runs.source`, `cost_rollups`, `ai_app_register`) is proposed in the
+spec itself, not yet folded into `docs/11-Database-Schema/` pending
+approval.

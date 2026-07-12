@@ -177,10 +177,11 @@ and legacy PRAG versions get a fallback mechanism (`projects.prag_version`
 + a `legacy_prag_pending` finding status) that handles the question
 architecturally regardless of whether such a grant actually exists.
 
-**What's still deliberately out of scope:** `docs/03-Parliament-Core/`
-remains `DRAFT`. Its §0 source-grounding caveat (`pmAgent.js`/
-`ministryAdapter.js` couldn't be read from GitHub) is queued — pending
-GitHub plugin authorization on your end, picked up as soon as that's live.
+**What's still deliberately out of scope (as of Session 2 — see Session 3
+below for what closed this):** `docs/03-Parliament-Core/` remains `DRAFT`.
+Its §0 source-grounding caveat (`pmAgent.js`/`ministryAdapter.js` couldn't
+be read from GitHub) is queued — pending GitHub plugin authorization on
+your end, picked up as soon as that's live.
 
 ## Product Owner Approval — 12 July 2026 (Session 2)
 
@@ -207,6 +208,52 @@ prioritisation call for what comes next, not pre-selected here.
 **Before Claude Code implements any of this round's approvals:** the five
 new/follow-on tables and columns in Database Schema §15 need to actually be
 migrated (through the staging branch discipline, ADR-0007) — they are
+currently approved *specification*, not yet applied schema. `reports_
+report_type_check` specifically touches a real, live table and its exact
+current constraint name/values were not verified against the live database
+that session — confirm before applying.
+
+## Session 3 — Parliament Core Unblocked, Full Spec Set Complete
+
+**The GitHub read block on `docs/03-Parliament-Core/` is resolved — without
+GitHub.** A local, unzipped copy of the real MVP repo was found at
+`~/Downloads/parliamentary-ai-mvp/` and read in full (`pmAgent.js`,
+`ministryAdapter.js`, `vetoEngine.js`, `humanGates.js`, `store.js`,
+`geminiClient.js`, `server.js`, plus both ministry files). **Verdict: the
+spec's migration sections, built from the README alone, matched the real
+code closely — a confirmation pass, not a redesign.** The Vote of No
+Confidence threshold default (2), the four human gates, the veto engine's
+three tiers, and the Ministry Adapter contract all checked out exactly.
+Two genuinely new, real details were folded in: the confidence heuristic
+(`high`/`medium`/`low`, §2.3.2 — an actual algorithm already in
+`pmAgent.js`, not a placeholder) and the real `409` gate-precondition
+enforcement pattern from `server.js`. One scope clarification worth
+knowing: only 2 of the 9 v1 Ministries (Research, Writing) have any
+existing code — the other 7 are net-new, built to the Ministry Adapter
+contract from scratch, not re-platformed from anything.
+**`docs/03-Parliament-Core/` is now Approved.**
+
+**All nine remaining `not yet specified` areas now have a first full spec**,
+all `DRAFT — pending Product Owner approval` (not pre-approved, unlike
+Parliament Core, since these introduce genuinely new content rather than
+confirming already-decided architecture):
+
+| Spec | Notable content |
+|---|---|
+| `docs/01-Product-Vision/` | Problem statement, persona value props, explicit non-goals; deliberately does **not** decide product-facing naming or exact success-metric targets — flagged as your calls, not architecture's |
+| `docs/02-Domain-Model/` | Full ER diagram (Mermaid) + entity dictionary consolidating six specs' worth of scattered entity definitions; introduces zero new entities |
+| `docs/09-Intelligence-Workspace/` | Flags a real naming collision: this new "Intelligence Workspace / Knowledge Hub" app is *not* the same as the existing SaaS product (which became `docs/08-Project-Operations/`) — recommends a rename before launch |
+| `docs/12-APIs/` | Gateway cross-cutting contract (versioning, auth, error shape, rate limiting) + a routing index to every endpoint's real owning spec — no contracts re-derived |
+| `docs/13-Frontend/` | One React shell across all four Layer-1 apps (not four deployments), a reusable Human Gate UI component, and the direct-Supabase-vs-Gateway data-fetching rule |
+| `docs/14-Backend/` | **Revises** the historical roadmap's Node+Python split: Node/Deno (Supabase Edge Functions) is primary; Python is scoped narrowly to document ingestion only |
+| `docs/17-AI-Governance/` | AI App Register, human oversight matrix, EU AI Act obligation-to-logging mapping, incident playbook — and the confirmed home of the Observability & Cost Service |
+| `docs/18-Testing/` | Priority-ordered test pyramid; Veto Engine regression suite's first two golden-file cases pulled directly from real `vetoEngine.js` fallback logic |
+| `docs/20-Roadmap/` | Six-phase build sequence by actual dependency; flags one real sequencing risk (the PII filter lands in Phase 4 but PII-bearing ingestion starts in Phase 1) |
+
+**The full `docs/` skeleton now has a first spec everywhere** except
+nothing — every folder that was `not yet specified` now has content. What
+remains is Product Owner review of this round's nine drafts, plus
+implementation of everything already Approved.
 currently approved *specification*, not yet applied schema. `reports_
 report_type_check` (§15.3) specifically touches a real, live table and its
 exact current constraint name/values were not verified against the live

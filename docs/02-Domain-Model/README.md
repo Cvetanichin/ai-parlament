@@ -1,12 +1,10 @@
 ---
-status: not yet specified — entity list exists in EAS §4, full schema pending
+status: SPECIFIED — DRAFT, pending Product Owner approval — see Domain-Model-Specification-v1.0.md
 eas_reference: EAS v1.0 §4 (Domain Model)
 ---
 # 02 — Domain Model (detail)
 
-Scope: full entity-relationship detail beyond the EAS §4 summary — attributes,
-cardinalities, lifecycle states per entity (e.g. Opportunity: forthcoming → open →
-closing_soon → closed → archived), and versioning rules (which entities are
-append-only vs. mutable).
-
-Depends on: 11-Database-Schema for physical implementation.
+Full specification: `Domain-Model-Specification-v1.0.md` — an ER diagram,
+full entity dictionary, and lifecycle/mutability rules, consolidating what
+`docs/11-Database-Schema/` and six other specs already established rather
+than introducing new entities or decisions.

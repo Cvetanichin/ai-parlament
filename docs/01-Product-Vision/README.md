@@ -1,13 +1,11 @@
 ---
-status: not yet specified
+status: SPECIFIED — DRAFT, pending Product Owner approval — see Product-Vision-Specification-v1.0.md
 eas_reference: EAS v1.0 §1 (What This Platform Is)
 ---
 # 01 — Product Vision
 
-Scope: mission, target CSO segments, competitive framing, naming/identity decisions
-(e.g. the "Parliamentary AI Ecosystem" vs. platform brand distinction raised in prior
-architecture discussion), and what "success" means for the platform beyond the MVP
-exit criteria already defined in the historical roadmap.
-
-Not yet drafted. Do not implement product-facing copy or positioning against this
-folder until a spec exists here.
+Full specification: `Product-Vision-Specification-v1.0.md`. Deliberately
+does not decide product-facing naming/brand (§3) or exact success-metric
+targets (§6) — both flagged as Product Owner calls, not made unilaterally.
+Do not implement product-facing copy or positioning against this folder
+until this spec is approved.
