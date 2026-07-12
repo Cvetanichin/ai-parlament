@@ -36,6 +36,14 @@ report_type`, `submission_packages`).
 `cost_rollups` (Observability & Cost Service's derived aggregate table),
 and `ai_app_register`.
 
+**Applied, not just specified (§17, §18):** the full §1–§16 schema is live
+on both `Consultancy Dashboard - Staging` and `Consultancy Dashboard`
+(production, `jorpfsrvhnelnboupiyx`), 12 July 2026 — 40 tables, full RLS,
+zero new security advisor lints on either project. Production's real data
+(one project, three documents, a report, six agent runs) was backfilled
+into a real `organisations`/`organisation_members` row, not left orphaned.
+No spec in this repository has unapplied Layer 3/4 DDL remaining.
+
 Resolved since v1.0: migration tooling (Supabase CLI, ADR-0007), embedding
 dimension (1536, OpenAI-style default), the Knowledge Platform seed corpus
 (a dedicated Google Drive folder created and linked from the Knowledge

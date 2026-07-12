@@ -353,3 +353,61 @@ to skip asking.
   factors outside the platform's control to be a fair target.
 
 Product Vision is now **v1.1**.
+
+## Session 5 — Production Migrated, Brand Hierarchy Confirmed
+
+**1) Production is now migrated — the identical, staging-validated schema,
+promoted with your explicit go-ahead.** `Consultancy Dashboard`
+(`jorpfsrvhnelnboupiyx`) went from its original 12 tables to the full 40,
+same ten migrations, same order, same content as staging. Two things had
+to be handled differently precisely because production isn't staging's
+empty sandbox:
+
+- **Real data got a real backfill**, not just compatible schema. Checked
+  first: one real project (`HERA VOL 2`), three documents, a report, six
+  agent runs, all belonging to one real user. The multi-tenancy migration
+  was extended with explicit `UPDATE` statements so that data landed inside
+  a real `organisations`/`organisation_members` row instead of sitting at
+  `organisation_id = NULL` waiting for someone to notice later. Verified
+  after: 1 organisation, 1 member, every real row correctly scoped.
+- **The `agent_runs` append-only revoke was held back again, more
+  deliberately this time** — production's edge functions are live,
+  serving real traffic, not a smoke test. Revoking `UPDATE` without the
+  still-undesigned security-definer status-transition function would have
+  broken something actually in use, not a hypothetical.
+
+Pre-migration checks (schema shape, existing constraints, the one real
+`reports.report_type` value) confirmed production was structurally
+identical to staging's pre-migration state before a single statement ran.
+New RLS policies were written correctly the first time — zero
+`auth_rls_initplan` findings appeared at any point on production, versus
+staging's initial 83, because that lesson was already learned. Post-
+migration: full RLS on all 40 tables, zero new security lints (one
+pre-existing, unrelated Auth setting — leaked-password protection — is
+untouched, out of scope). **Both Supabase projects now run the identical,
+fully-approved schema.** Full record: Database Schema §18.
+
+**2) Brand hierarchy confirmed** — your refinement of the single "Quorum"
+proposal into a proper layered structure:
+
+| Layer | Brand |
+|---|---|
+| Company | **Cvetanichin** |
+| Platform | **CSO Playground OS** |
+| AI Governance Engine | **Quorum Engine** |
+| Pre-award Suite | **Grant Studio** |
+| Post-award Suite | **Project Operations** |
+| Knowledge Platform | **Knowledge Hub** |
+| Developer Environment | **House of Parliament** |
+
+This is a genuine refinement, not a reversal: "Quorum" now names
+specifically the governance/compliance mechanism it was always describing
+(the four Human Gates, the Tripartite Veto Engine) rather than standing in
+for the whole platform — more precise, since the governance layer is what
+actually has the quorum-like property, not the document editor or
+dashboard. **Cvetanichin** as the company brand matches the existing SaaS
+product's own domain (`cvetanichin.org`) rather than introducing a
+competing identity. Every application-level name (Grant Studio, Project
+Operations, Knowledge Hub, House of Parliament) is confirmed exactly as
+already specified — nothing renamed, just placed correctly in the
+hierarchy. Product Vision is now **v1.2**.

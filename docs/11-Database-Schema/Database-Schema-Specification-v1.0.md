@@ -1,7 +1,7 @@
 ---
 document: Database Schema Specification
 version: 1.5
-status: APPROVED — approved by Product Owner 12 July 2026; v1.5 folds in follow-on migrations from AI Governance (§16); §14's 3 remaining items (JSONB scope, agent_runs status-update mechanism, PITR window) are tracked follow-ups deferred to future review, not blockers to implementation. **§1-§16 fully applied to staging** (`Consultancy Dashboard - Staging`, 12 July 2026, migrations `01_multi_tenancy` through `10_performance_hardening`) — 40 tables, full RLS coverage, zero security advisor lints. Production (`Consultancy Dashboard`, `jorpfsrvhnelnboupiyx`) remains untouched pending explicit go-ahead.
+status: APPROVED — approved by Product Owner 12 July 2026; v1.5 folds in follow-on migrations from AI Governance (§16); §14's 3 remaining items (JSONB scope, agent_runs status-update mechanism, PITR window) are tracked follow-ups deferred to future review, not blockers to implementation. **§1-§16 fully applied to both staging and production** (`Consultancy Dashboard - Staging` then `Consultancy Dashboard`, `jorpfsrvhnelnboupiyx`, 12 July 2026, migrations `01_multi_tenancy` through `10_performance_hardening`) — 40 tables, full RLS coverage, zero new security advisor lints on either project. See §17 and §18.
 parent: ../../00-EAS-v1.0.md (EAS §4 domain model, §13 priority 3)
 related_adrs: ../21-ADRs/0005-multi-tenancy-built-in-day-one.md, ../21-ADRs/0006-vector-store-pgvector.md, ../21-ADRs/0007-supabase-as-layer-4-backbone.md
 consolidates: EAS §4, Grant Studio spec §2-§11, Regulatory Knowledge Layer spec §5, Parliament Core spec §2.6/§3.6, Project Operations spec §1-§7, Platform Services spec §1-§5, Knowledge Platform spec §3/§6, House of Parliament spec §7, Security spec §5/§7, Grant Studio spec §3.1/§6.1/§8.1/§9.1/§10.1, AI Governance spec §1.2/§2.1
@@ -887,3 +887,57 @@ held for explicit Product Owner go-ahead, per the standing discipline this
 document has stated since v1.0 — staging validation completing
 successfully is a precondition for that promotion, not a substitute for
 asking first.
+
+## 18. Production Application Record — 12 July 2026
+
+Following explicit Product Owner go-ahead, §17's ten migrations were
+promoted to `Consultancy Dashboard` (`jorpfsrvhnelnboupiyx`), same day,
+same migration names and content, with two adaptations required because
+production — unlike staging — carries real data:
+
+- **§1's backfill was completed, not just performed.** Staging had zero
+  rows, so creating `organisations`/`organisation_members` was sufficient.
+  Production has one real project (`HERA VOL 2`, 3 documents, 1 report, 6
+  agent runs, all owned by one real user). Migration `01_multi_tenancy` was
+  extended with explicit `UPDATE ... SET organisation_id` statements
+  (direct for `clients`/`projects`, joined through `projects` for the
+  remaining six tables) so the existing rows are actually visible under
+  the new organisation-scoped RLS policies, not merely schema-compatible
+  with them. Verified post-migration: 1 organisation, 1 member, and all
+  real rows correctly backfilled.
+- **New policies were written with `(select auth.uid())` from the start**
+  — the fix migration `10` had to retrofit on staging — since that lesson
+  was already learned. Confirmed via the security advisor: zero
+  `auth_rls_initplan` findings appeared on production at any point, unlike
+  staging's initial 83.
+
+**Pre-migration verification performed before touching anything:** schema
+shape (tables, columns, RLS policy patterns), existing constraints on
+`reports`/`indicators` (none beyond primary/foreign keys — confirmed no
+conflict with the new CHECK constraints), and the one real
+`reports.report_type` value in production data (`me_brief`, valid under
+both the narrower §5.1 and the wider §15.3 constraint) were all confirmed
+identical in shape to staging's pre-migration state before any migration
+ran.
+
+**§7's `agent_runs` append-only revoke was skipped here too, for a
+stronger reason than on staging:** production's edge functions are live
+and actively serving real traffic, not just structurally present. Revoking
+`UPDATE` without the security-definer status-transition function (§14,
+still undecided) would have broken real, in-use functionality, not a
+smoke test.
+
+**Post-migration verification:** 40 tables, full RLS coverage, real data
+intact and correctly scoped. Security advisor: zero new lints (the one
+remaining `auth_leaked_password_protection` WARN pre-dates this work and
+is an Auth-configuration setting unrelated to this migration set — not
+addressed here, out of scope). Performance advisor: 115 lints, same two
+expected categories as staging (`unindexed_foreign_keys`, fixed by the
+same migration `10` index set; `multiple_permissive_policies`, the
+deliberate dual-RLS design) plus `unused_index` on the tables still at
+zero rows — no `auth_rls_initplan` findings at all, confirming the
+lesson from staging was applied correctly the first time on production.
+
+**Both `Consultancy Dashboard - Staging` and `Consultancy Dashboard` now
+run the identical, fully-approved schema.** No spec in this repository has
+unapplied Layer 3/4 DDL remaining.

@@ -1,11 +1,11 @@
 ---
 document: Product Vision Specification
-version: 1.1
-status: APPROVED — approved by Product Owner 12 July 2026; v1.1 (same day) closes both remaining open items — §3 proposes the brand name "Quorum" (working name, pending sign-off before external use), §6 sets five concrete v1 success-metric targets; the docs/09- naming collision this spec originally flagged is resolved by ADR-0008
+version: 1.2
+status: APPROVED — approved by Product Owner 12 July 2026; v1.2 confirms the full brand hierarchy (Cvetanichin / CSO Playground OS / Quorum Engine / Grant Studio / Project Operations / Knowledge Hub / House of Parliament), superseding v1.1's single-name "Quorum" proposal by refining it into the AI Governance Engine layer specifically; §6 sets five concrete v1 success-metric targets; the docs/09- naming collision this spec originally flagged is resolved by ADR-0008
 parent: ../../00-EAS-v1.0.md (EAS §1 What This Platform Is)
 ---
 
-# Product Vision — Specification v1.1
+# Product Vision — Specification v1.2
 
 ## 0. Purpose
 
@@ -69,35 +69,53 @@ and stays exactly as-is in `docs/` and internal engineering conversation.
 It is not, and was never meant to be, what a donor, board member, or CSO
 client sees.
 
-**Product-facing brand: Quorum.**
+**Confirmed brand hierarchy** (Product Owner decision, 12 July 2026 —
+supersedes this document's earlier single-name "Quorum" proposal by
+refining it into a layer of a fuller hierarchy rather than replacing it):
 
-A quorum is the minimum number of members whose presence is required before
-a body can validly act — which is a precise, non-metaphorical description
-of what this platform actually enforces: no proposal, budget, or report
-proceeds past a gate without the required review present (EAS §3.1's four
-Human Gates; EAS §7.2's named-approver requirement). Unlike "Parliamentary
-AI," the name carries no partisan or political connotation, reads as
-credible in an EU/UNDP donor-compliance context, and doesn't require
-explaining an internal architecture metaphor to someone who will never see
-a Ministry or a Prime Minister. It is short, unclaimed by any adjacent
-grant-tech product the team is aware of, and scales cleanly as a prefix for
-every existing application name without renaming any of them: **Quorum
-Grant Studio**, **Quorum Project Operations**, **Quorum Knowledge Hub**,
-**Quorum Executive Dashboard**. House of Parliament, being internal-only
-tooling (`docs/10-`), does not need a Quorum-branded name at all — it is
-never customer-facing.
+| Layer | Brand |
+|---|---|
+| Company | **Cvetanichin** |
+| Platform | **CSO Playground OS** |
+| AI Governance Engine | **Quorum Engine** |
+| Pre-award Suite | **Grant Studio** |
+| Post-award Suite | **Project Operations** |
+| Knowledge Platform | **Knowledge Hub** |
+| Developer Environment | **House of Parliament** |
 
-**Working tagline:** *"Nothing proceeds without quorum."* — doubles as a
-literal description of the Human Gate model and a one-line explanation of
-why the platform is trustworthy for donor-facing work, without requiring
-the reader to know what a Human Gate is.
+**How the layers relate:**
 
-**This is a proposal, not an irreversible decision.** Brand naming carries
-real costs to change once used externally (donor-facing templates, a
-website, board materials) — treat "Quorum" as the working name until the
-Product Owner explicitly signs off on it appearing in anything external,
-the same threshold every other Approved-but-not-yet-implemented spec in
-this repository already carries.
+- **Cvetanichin** is the company/parent brand — consistent with the
+  existing SaaS product's own domain (`cvetanichin.org`, EAS §8 asset map),
+  not a new identity introduced alongside it.
+- **CSO Playground OS** is the platform-level product name — what appears
+  on a login screen, a pricing page, or an "About this platform" line. It
+  reads as approachable rather than bureaucratic, a deliberate choice given
+  "Parliamentary AI" itself risks sounding like political software to
+  someone encountering it cold.
+- **Quorum Engine** names specifically the governance/compliance mechanism
+  (Prime Minister, Ministries, Tripartite Veto Engine, the four Human
+  Gates, EAS §3.1–§3.2) — this is where the earlier single-brand "Quorum"
+  proposal's underlying logic still applies exactly as reasoned before: a
+  quorum is the minimum presence required before a body can validly act,
+  which is a literal, not metaphorical, description of what this specific
+  layer enforces. Scoping "Quorum" to the engine rather than the whole
+  platform is more precise — the governance mechanism is what has a
+  quorum-like property, not the platform's document editor or dashboard.
+- **Grant Studio, Project Operations, Knowledge Hub, House of Parliament**
+  keep their existing application-level names exactly as already specified
+  (`docs/07-`, `docs/08-`, `docs/09-Knowledge-Hub/`, `docs/10-`) — this
+  hierarchy confirms them, it does not rename anything. House of Parliament
+  stays internal-only tooling, never customer-facing, consistent with its
+  own spec's scope statement.
+
+**Working tagline, now scoped correctly to the Quorum Engine layer rather
+than the whole platform:** *"Nothing proceeds without quorum."*
+
+This hierarchy is now the working naming reference for every future spec
+and for `docs/13-Frontend/` implementation — still subject to the same
+external-use threshold every brand decision carries (real cost to change
+once it appears on donor-facing material), but no longer an open item.
 
 ## 4. Value Proposition by Persona
 
@@ -150,10 +168,12 @@ retroactive, and none block any spec's approval or implementation.
 
 ## 7. Open Items for Product Owner
 
-- ~~**Product-facing brand name(s)**~~ (§3) — **proposed**: "Quorum,"
-  pending explicit Product Owner sign-off before it appears in anything
-  external (donor-facing material, a website, board decks) — a working
-  name, not yet a committed one.
+- ~~**Product-facing brand name(s)**~~ (§3) — **confirmed**: the full
+  Cvetanichin / CSO Playground OS / Quorum Engine / Grant Studio / Project
+  Operations / Knowledge Hub / House of Parliament hierarchy, Product Owner
+  decision 12 July 2026. Still subject to the standard external-use
+  threshold (real cost to change once on donor-facing material) before
+  appearing anywhere outside internal use.
 - ~~**Exact numeric success targets**~~ (§6) — **set**: five v1 targets,
   each explicitly labelled as an initial hypothesis to recalibrate against
   real usage data once the relevant Roadmap phase is live, not a
