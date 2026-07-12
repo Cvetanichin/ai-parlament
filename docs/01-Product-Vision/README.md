@@ -1,5 +1,5 @@
 ---
-status: SPECIFIED — DRAFT, pending Product Owner approval — see Product-Vision-Specification-v1.0.md
+status: APPROVED — approved by Product Owner 12 July 2026 — see Product-Vision-Specification-v1.0.md
 eas_reference: EAS v1.0 §1 (What This Platform Is)
 ---
 # 01 — Product Vision

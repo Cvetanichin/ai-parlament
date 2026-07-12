@@ -1,5 +1,5 @@
 ---
-status: SPECIFIED — DRAFT, pending Product Owner approval — see Roadmap-Specification-v1.0.md
+status: APPROVED — approved by Product Owner 12 July 2026 — see Roadmap-Specification-v1.0.md
 eas_reference: EAS v1.0 §13 (Immediate Next Specifications)
 ---
 # 20 — Roadmap

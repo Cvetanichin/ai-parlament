@@ -1,5 +1,5 @@
 ---
-status: SPECIFIED — DRAFT, pending Product Owner approval — see AI-Governance-Specification-v1.0.md
+status: APPROVED — approved by Product Owner 12 July 2026 — see AI-Governance-Specification-v1.0.md
 eas_reference: EAS v1.0 §7 (Governance & AI-Risk Model), §3.3 (Observability & Cost Service)
 ---
 # 17 — AI Governance

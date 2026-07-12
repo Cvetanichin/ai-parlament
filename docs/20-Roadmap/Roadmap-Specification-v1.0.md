@@ -1,7 +1,7 @@
 ---
 document: Development Roadmap Specification
 version: 1.0
-status: DRAFT — pending Product Owner approval; supersedes the phase table in Parliamentary_AI_Engine_Roadmap.md (historical, retained as background context only)
+status: APPROVED — approved by Product Owner 12 July 2026; supersedes the phase table in Parliamentary_AI_Engine_Roadmap.md (historical, retained as background context only)
 parent: ../../00-EAS-v1.0.md (EAS §13 Immediate Next Specifications)
 ---
 
@@ -135,8 +135,8 @@ promote a prompt, who can curate institutional memory).
 that makes the platform durable past any one person, not just functional
 day-to-day.
 
-- Intelligence Workspace / Knowledge Hub (`docs/09-`) — after the naming
-  collision (that spec §0, Product Vision §7) is resolved.
+- Knowledge Hub (`docs/09-Knowledge-Hub/`) — naming collision with
+  Project Operations resolved by ADR-0008.
 - AI Governance's Observability & Cost Service and AI App Register
   (`docs/17-`) — cost/confidence dashboards and register entries populate
   from data that's been accumulating since Phase 1's Agent Invocations, so

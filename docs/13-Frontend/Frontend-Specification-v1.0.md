@@ -1,7 +1,7 @@
 ---
 document: Frontend Specification
 version: 1.0
-status: DRAFT — pending Product Owner approval
+status: APPROVED — approved by Product Owner 12 July 2026
 parent: ../../00-EAS-v1.0.md (EAS §3.1 Layer 1 applications, §11 repo restructuring)
 related_specs: ../10-House-of-Parliament/House-of-Parliament-Specification-v1.0.md, ../16-Security/Security-Specification-v1.0.md, ../12-APIs/APIs-Specification-v1.0.md
 ---

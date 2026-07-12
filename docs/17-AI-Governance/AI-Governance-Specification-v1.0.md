@@ -1,7 +1,7 @@
 ---
 document: AI Governance Specification — AI App Register, Observability & Cost Service, EU AI Act Posture
 version: 1.0
-status: DRAFT — pending Product Owner approval
+status: APPROVED — approved by Product Owner 12 July 2026; new DDL (§1.2, §2.1) to be appended to docs/11-Database-Schema/ before implementation begins
 parent: ../../00-EAS-v1.0.md (EAS §7 Governance & AI-Risk Model, §3.3 Observability & Cost Service)
 related_specs: ../16-Security/Security-Specification-v1.0.md, ../03-Parliament-Core/Parliament-Core-Specification-v1.0.md, ../04-Platform-Services/Platform-Services-Specification-v1.0.md
 ---

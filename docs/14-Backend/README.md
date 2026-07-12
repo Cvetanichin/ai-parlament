@@ -1,5 +1,5 @@
 ---
-status: SPECIFIED — DRAFT, pending Product Owner approval — see Backend-Specification-v1.0.md
+status: APPROVED — approved by Product Owner 12 July 2026 — see Backend-Specification-v1.0.md
 eas_reference: EAS v1.0 §11 (Repository & Documentation Restructuring Plan)
 ---
 # 14 — Backend

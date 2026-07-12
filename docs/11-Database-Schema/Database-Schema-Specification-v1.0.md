@@ -1,13 +1,13 @@
 ---
 document: Database Schema Specification
-version: 1.4
-status: APPROVED — approved by Product Owner 12 July 2026; v1.4 folds in the follow-on migrations from the newly-Approved House of Parliament, Security, and Grant Studio specs (§15); §14's 3 remaining items (JSONB scope, agent_runs status-update mechanism, PITR window) are tracked follow-ups deferred to future review, not blockers to implementation
+version: 1.5
+status: APPROVED — approved by Product Owner 12 July 2026; v1.5 folds in follow-on migrations from AI Governance (§16); §14's 3 remaining items (JSONB scope, agent_runs status-update mechanism, PITR window) are tracked follow-ups deferred to future review, not blockers to implementation
 parent: ../../00-EAS-v1.0.md (EAS §4 domain model, §13 priority 3)
 related_adrs: ../21-ADRs/0005-multi-tenancy-built-in-day-one.md, ../21-ADRs/0006-vector-store-pgvector.md, ../21-ADRs/0007-supabase-as-layer-4-backbone.md
-consolidates: EAS §4, Grant Studio spec §2-§11, Regulatory Knowledge Layer spec §5, Parliament Core spec §2.6/§3.6, Project Operations spec §1-§7, Platform Services spec §1-§5, Knowledge Platform spec §3/§6, House of Parliament spec §7, Security spec §5/§7, Grant Studio spec §3.1/§6.1/§8.1/§9.1/§10.1
+consolidates: EAS §4, Grant Studio spec §2-§11, Regulatory Knowledge Layer spec §5, Parliament Core spec §2.6/§3.6, Project Operations spec §1-§7, Platform Services spec §1-§5, Knowledge Platform spec §3/§6, House of Parliament spec §7, Security spec §5/§7, Grant Studio spec §3.1/§6.1/§8.1/§9.1/§10.1, AI Governance spec §1.2/§2.1
 ---
 
-# Database Schema — Specification v1.4
+# Database Schema — Specification v1.5
 
 ## 0. Purpose and Scope — Revised Following ADR-0007
 
@@ -755,3 +755,51 @@ statement in particular touches a real, live table and must not be applied
 to production without first confirming the actual current constraint
 against the live schema — a mismatch there is a live-table risk, not a
 hypothetical one.
+
+## 16. Follow-On Migrations from AI Governance (v1.5)
+
+From `docs/17-AI-Governance/` §1.2, §2.1. Additive only, same discipline as
+§15.
+
+```sql
+-- §1.2 Observability & Cost Service
+alter table public.agent_runs add column source text not null default 'production'
+  check (source in ('production','house_of_parliament'));
+-- resolves House of Parliament spec §9's cost-attribution requirement.
+
+create table public.cost_rollups (
+  id uuid primary key default gen_random_uuid(),
+  organisation_id uuid not null references public.organisations(id),
+  scope_type text not null check (scope_type in ('ministry','proposal','project','user')),
+  scope_id uuid not null,
+  period_start date not null,
+  period_end date not null,
+  total_token_cost numeric not null default 0,
+  total_invocations integer not null default 0,
+  confidence_distribution jsonb default '{}',
+  computed_at timestamptz not null default now()
+);
+-- derived/cache table, recomputed periodically from agent_runs — never the
+-- source of truth for an individual invocation's cost.
+
+-- §2.1 AI App Register
+create table public.ai_app_register (
+  id uuid primary key default gen_random_uuid(),
+  organisation_id uuid references public.organisations(id),
+  application_or_ministry text not null,
+  owner uuid references auth.users(id),
+  purpose text not null,
+  vendor_model text not null,
+  data_sources text[] default '{}',
+  risk_tier text not null check (risk_tier in ('minimal','limited','high_risk_equivalent')),
+  oversight_matrix_ref text,
+  monitoring_kpis text[] default '{}',
+  review_cadence text not null default 'quarterly',
+  last_reviewed_at date,
+  created_at timestamptz not null default now()
+);
+```
+
+Same staging-validation discipline as §15 applies — none of this touches an
+existing column, but `agent_runs` is a real, live table and the new column
+must be validated on a branch first.

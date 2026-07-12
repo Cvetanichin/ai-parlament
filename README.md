@@ -233,31 +233,32 @@ existing code — the other 7 are net-new, built to the Ministry Adapter
 contract from scratch, not re-platformed from anything.
 **`docs/03-Parliament-Core/` is now Approved.**
 
-**All nine remaining `not yet specified` areas now have a first full spec**,
-all `DRAFT — pending Product Owner approval` (not pre-approved, unlike
-Parliament Core, since these introduce genuinely new content rather than
-confirming already-decided architecture):
+**All nine remaining `not yet specified` areas now have a first full spec,
+and — following your amend-then-approve instruction — all nine are now
+Approved:**
 
 | Spec | Notable content |
 |---|---|
-| `docs/01-Product-Vision/` | Problem statement, persona value props, explicit non-goals; deliberately does **not** decide product-facing naming or exact success-metric targets — flagged as your calls, not architecture's |
+| `docs/01-Product-Vision/` | Problem statement, persona value props, explicit non-goals; deliberately does **not** decide product-facing brand naming or exact success-metric targets — flagged as your calls, not architecture's |
 | `docs/02-Domain-Model/` | Full ER diagram (Mermaid) + entity dictionary consolidating six specs' worth of scattered entity definitions; introduces zero new entities |
-| `docs/09-Intelligence-Workspace/` | Flags a real naming collision: this new "Intelligence Workspace / Knowledge Hub" app is *not* the same as the existing SaaS product (which became `docs/08-Project-Operations/`) — recommends a rename before launch |
+| `docs/09-Knowledge-Hub/` (renamed from "Intelligence Workspace / Knowledge Hub") | **The naming collision is resolved, per your amendment request — ADR-0008.** This application is now named Knowledge Hub, full stop; "Intelligence Workspace" refers exclusively to the existing SaaS product re-platformed into `docs/08-Project-Operations/`. EAS §3.1 and §5 were amended in place to match — the first text amendment to the EAS document itself since v1.0. Folder and spec file renamed accordingly. |
 | `docs/12-APIs/` | Gateway cross-cutting contract (versioning, auth, error shape, rate limiting) + a routing index to every endpoint's real owning spec — no contracts re-derived |
 | `docs/13-Frontend/` | One React shell across all four Layer-1 apps (not four deployments), a reusable Human Gate UI component, and the direct-Supabase-vs-Gateway data-fetching rule |
 | `docs/14-Backend/` | **Revises** the historical roadmap's Node+Python split: Node/Deno (Supabase Edge Functions) is primary; Python is scoped narrowly to document ingestion only |
-| `docs/17-AI-Governance/` | AI App Register, human oversight matrix, EU AI Act obligation-to-logging mapping, incident playbook — and the confirmed home of the Observability & Cost Service |
+| `docs/17-AI-Governance/` | AI App Register, human oversight matrix, EU AI Act obligation-to-logging mapping, incident playbook — and the confirmed home of the Observability & Cost Service. New DDL folded into Database Schema §16 (v1.5). |
 | `docs/18-Testing/` | Priority-ordered test pyramid; Veto Engine regression suite's first two golden-file cases pulled directly from real `vetoEngine.js` fallback logic |
 | `docs/20-Roadmap/` | Six-phase build sequence by actual dependency; flags one real sequencing risk (the PII filter lands in Phase 4 but PII-bearing ingestion starts in Phase 1) |
 
-**The full `docs/` skeleton now has a first spec everywhere** except
-nothing — every folder that was `not yet specified` now has content. What
-remains is Product Owner review of this round's nine drafts, plus
-implementation of everything already Approved.
-currently approved *specification*, not yet applied schema. `reports_
-report_type_check` (§15.3) specifically touches a real, live table and its
-exact current constraint name/values were not verified against the live
-database this session — confirm before applying.
+**The full `docs/` skeleton now has an Approved spec everywhere** — every
+folder that was `not yet specified` now has content, and every spec in the
+repository is `APPROVED` except nothing.
+
+**ADR-0008** (`docs/21-ADRs/0008-knowledge-hub-naming.md`) is the record of
+the naming amendment: `docs/09-Intelligence-Workspace/` → `docs/09-
+Knowledge-Hub/`, its spec file renamed to `Knowledge-Hub-Specification-
+v1.0.md`, and EAS §3.1/§5 both edited in place to say "Knowledge Hub"
+instead of "Intelligence Workspace / Knowledge Hub." No functional,
+data-model, or API change accompanies it — naming only.
 
 ## §8. Staging Hardening — Findings Fixed
 
@@ -284,6 +285,7 @@ billed project, even though the change is low-risk.
 | 0005 | Accepted | Multi-tenancy — built into the schema from day one |
 | 0006 | Accepted | Vector store — pgvector, co-located with PostgreSQL |
 | 0007 | Accepted | Supabase (Intelligence Workspace's existing project) as the Layer 4 backbone |
+| 0008 | Accepted | Rename `docs/09-` to "Knowledge Hub" — resolves its naming collision with Project Operations |
 
 Every migration touching a real, live table (§1, §3, §5 of the Database
 Schema spec) is now a hard requirement to validate on a Supabase branch or

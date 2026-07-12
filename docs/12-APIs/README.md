@@ -1,5 +1,5 @@
 ---
-status: SPECIFIED — DRAFT, pending Product Owner approval — see APIs-Specification-v1.0.md
+status: APPROVED — approved by Product Owner 12 July 2026 — see APIs-Specification-v1.0.md
 eas_reference: EAS v1.0 §3.4 (API Gateway), §6.3 (Regulatory APIs)
 ---
 # 12 — APIs

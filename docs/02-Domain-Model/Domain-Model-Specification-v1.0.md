@@ -1,7 +1,7 @@
 ---
 document: Domain Model Specification (Detail)
 version: 1.0
-status: DRAFT — pending Product Owner review; consolidates entities already Approved across other specs, introduces no new business decisions
+status: APPROVED — approved by Product Owner 12 July 2026; consolidates entities already Approved across other specs, introduces no new business decisions
 parent: ../../00-EAS-v1.0.md (EAS §4 Domain Model)
 related_specs: ../11-Database-Schema/Database-Schema-Specification-v1.0.md, ../07-Grant-Studio/Grant-Studio-Specification-v1.0.md, ../05-Regulatory-Knowledge-Layer/Regulatory-Knowledge-Layer-Specification-v1.0.md, ../04-Platform-Services/Platform-Services-Specification-v1.0.md, ../03-Parliament-Core/Parliament-Core-Specification-v1.0.md
 ---

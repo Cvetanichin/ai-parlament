@@ -1,7 +1,7 @@
 ---
 document: Backend Specification
 version: 1.0
-status: DRAFT — pending Product Owner approval
+status: APPROVED — approved by Product Owner 12 July 2026
 parent: ../../00-EAS-v1.0.md (EAS §11 Repository & Documentation Restructuring Plan)
 related_specs: ../03-Parliament-Core/Parliament-Core-Specification-v1.0.md, ../15-Infrastructure/README.md, ../19-Deployment/Deployment-Specification-v1.0.md
 ---

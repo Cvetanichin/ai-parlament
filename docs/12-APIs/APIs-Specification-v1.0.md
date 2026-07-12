@@ -1,7 +1,7 @@
 ---
 document: APIs Specification — Gateway Contract and Endpoint Catalog
 version: 1.0
-status: DRAFT — pending Product Owner approval
+status: APPROVED — approved by Product Owner 12 July 2026
 parent: ../../00-EAS-v1.0.md (EAS §3.4 API Gateway, §6.3 Regulatory APIs)
 related_specs: all Layer 2/3 detail specs (catalogued in §6)
 ---

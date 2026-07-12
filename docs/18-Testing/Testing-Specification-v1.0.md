@@ -1,7 +1,7 @@
 ---
 document: Testing Specification
 version: 1.0
-status: DRAFT — pending Product Owner approval
+status: APPROVED — approved by Product Owner 12 July 2026
 parent: ../../00-EAS-v1.0.md (EAS §9 Testability NFR)
 related_specs: ../03-Parliament-Core/Parliament-Core-Specification-v1.0.md, ../10-House-of-Parliament/House-of-Parliament-Specification-v1.0.md, ../19-Deployment/Deployment-Specification-v1.0.md
 ---

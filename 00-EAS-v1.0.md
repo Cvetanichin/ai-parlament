@@ -29,7 +29,7 @@ This is document `00`. Everything else in `docs/` is a detail specification that
 The product is not a proposal-writing tool and not "an AI Parliament." It is an **AI Operating System for Civil Society Organisations (CSOs)**, purpose-built around the EU/UNDP-style grant lifecycle, in which:
 
 - The **Parliament** (Prime Minister, Ministries, Tripartite Veto Engine, Vote of No Confidence) is the governance and orchestration engine — one layer among four, not the whole system.
-- Applications (Grant Studio, Project Operations, Intelligence Workspace, House of Parliament) are what the human actually uses. They are built *on* the platform, not bundled *into* it.
+- Applications (Grant Studio, Project Operations, Knowledge Hub, House of Parliament) are what the human actually uses. They are built *on* the platform, not bundled *into* it.
 - Regulatory compliance (PRAG, the Standard Grant Contract, donor Guidelines for Applicants, EU AI Act deployer obligations, organisational policy) is a **queried platform service**, not text pasted into prompts.
 
 This distinction is the central architectural decision of v1.0 and the reason a four-layer model replaces the "ministries do everything" MVP shape.
@@ -77,7 +77,7 @@ Contains:
 - **Applications** — the user-facing products, each a thin client over Layer 2/3 APIs:
   - Grant Studio (Pre-Award) — see `docs/07-Grant-Studio/` (fully specified, §10 below).
   - Project Operations (Post-Award) — implementation, monitoring, reporting, procurement, evaluation, lessons learned. Integration target for the existing Intelligence Workspace SaaS (`cvetanichin.org`) — see §8.
-  - Intelligence Workspace / Knowledge Hub — internal knowledge, research, meeting notes, institutional memory. A consumer of the Knowledge Platform (Layer 3), not a separate knowledge store.
+  - Knowledge Hub — internal knowledge, research, meeting notes, institutional memory. A consumer of the Knowledge Platform (Layer 3), not a separate knowledge store. Named "Knowledge Hub" (not "Intelligence Workspace") per ADR-0008 — that name is reserved exclusively for the existing SaaS asset re-platformed into Project Operations above, to avoid two different applications sharing a name. See `docs/09-Knowledge-Hub/`.
   - House of Parliament — the **developer/integration workspace**, not customer-facing. Prompt IDE, agent registry, workflow builder, veto debugger, replay/benchmarking, live logs, confidence scores, token/cost view. This is where new agents, prompts, workflows, and compliance rules are tested before promotion to production. See `docs/10-House-of-Parliament/`.
   - Executive Dashboard — cross-application view: pipeline status, deadlines, cost, compliance posture.
 - **Human Gates** — the four points where autonomous execution stops and a named human decision is structurally required:
@@ -187,7 +187,7 @@ Full specs live under `docs/`; this table is the routing map from user-facing pr
 |---|---|---|---|
 | Grant Studio | Pre-award | Fundraising, Research, Writing, M&E, Finance & Admin, Compliance | Regulatory Knowledge Layer, Compliance Engine, Context Engine, Knowledge Platform |
 | Project Operations | Post-award | Reporting, Procurement, M&E, Finance & Admin, Compliance | Regulatory Knowledge Layer, Memory Engine (project memory), Workflow Engine |
-| Intelligence Workspace / Knowledge Hub | Continuous | Development, Research | Knowledge Platform, Memory Engine (institutional memory) |
+| Knowledge Hub | Continuous | Development, Research | Knowledge Platform, Memory Engine (institutional memory) |
 | House of Parliament | Continuous (internal) | n/a — developer tooling | Prompt Registry, Agent Runtime, Observability & Cost Service |
 | Executive Dashboard | Continuous | n/a — read-only aggregation | Observability & Cost Service, Event Bus |
 

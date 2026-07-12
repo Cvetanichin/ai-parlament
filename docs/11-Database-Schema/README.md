@@ -1,11 +1,11 @@
 ---
-status: APPROVED — approved by Product Owner 12 July 2026 — see Database-Schema-Specification-v1.0.md (now v1.4)
+status: APPROVED — approved by Product Owner 12 July 2026 — see Database-Schema-Specification-v1.0.md (now v1.5)
 eas_reference: EAS v1.0 §4 (Domain Model), §3.4 (PostgreSQL), §13 priority 3
 related_adrs: ../21-ADRs/0005-multi-tenancy-built-in-day-one.md, ../21-ADRs/0006-vector-store-pgvector.md, ../21-ADRs/0007-supabase-as-layer-4-backbone.md
 ---
 # 11 — Database Schema
 
-Full specification: `Database-Schema-Specification-v1.0.md` (v1.4) — the
+Full specification: `Database-Schema-Specification-v1.0.md` (v1.5) — the
 single consolidated schema source for the whole platform. Consolidates
 every entity from EAS §4, Grant Studio, Regulatory Knowledge Layer,
 Parliament Core, Project Operations, Platform Services (§11, v1.2), **and
@@ -30,6 +30,11 @@ four-role `organisation_members.role` CHECK constraint), and
 `docs/07-Grant-Studio/` (`eligibility_reports`, `indicators.proposal_id`,
 `compliance_findings.override_justification`, extended `reports.
 report_type`, `submission_packages`).
+
+**v1.5 adds (§16):** follow-on migrations from `docs/17-AI-Governance/` —
+`agent_runs.source` (production vs. house_of_parliament cost attribution),
+`cost_rollups` (Observability & Cost Service's derived aggregate table),
+and `ai_app_register`.
 
 Resolved since v1.0: migration tooling (Supabase CLI, ADR-0007), embedding
 dimension (1536, OpenAI-style default), the Knowledge Platform seed corpus

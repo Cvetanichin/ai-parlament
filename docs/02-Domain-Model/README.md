@@ -1,5 +1,5 @@
 ---
-status: SPECIFIED — DRAFT, pending Product Owner approval — see Domain-Model-Specification-v1.0.md
+status: APPROVED — approved by Product Owner 12 July 2026 — see Domain-Model-Specification-v1.0.md
 eas_reference: EAS v1.0 §4 (Domain Model)
 ---
 # 02 — Domain Model (detail)

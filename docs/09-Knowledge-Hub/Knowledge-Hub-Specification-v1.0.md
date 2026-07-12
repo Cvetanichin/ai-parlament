@@ -1,29 +1,26 @@
 ---
-document: Intelligence Workspace / Knowledge Hub Specification
+document: Knowledge Hub Specification
 version: 1.0
-status: DRAFT — pending Product Owner approval, especially §0's naming-collision flag
+status: APPROVED — approved by Product Owner 12 July 2026; naming collision with docs/08-Project-Operations/ resolved by ADR-0008 (this application renamed "Knowledge Hub", the EAS §3.1/§5 "Intelligence Workspace" name now refers exclusively to the re-platformed existing SaaS product, docs/08-)
 parent: ../../00-EAS-v1.0.md (EAS §3.1, §5 Applications Layer)
+related_adrs: ../21-ADRs/0008-knowledge-hub-naming.md
 related_specs: ../06-Knowledge-Platform/Knowledge-Platform-Specification-v1.0.md, ../04-Platform-Services/Platform-Services-Specification-v1.0.md, ../08-Project-Operations/Project-Operations-Specification-v1.0.md
 ---
 
-# Intelligence Workspace / Knowledge Hub — Specification v1.0
+# Knowledge Hub — Specification v1.0
 
-## 0. Scope and a Naming Collision Worth Flagging
+## 0. Scope, and the Naming Collision This Resolves
 
-**This is a different application from `docs/08-Project-Operations/`,
-despite an unfortunate name collision.** The *existing* SaaS product
-literally named "Intelligence Workspace" (`cvetanichin.org`) is the one
-EAS §8's asset map re-platforms into **Project Operations** — the
-post-award delivery/monitoring/reporting workspace. This document specifies
-a **separate, new** Layer 1 application that EAS §3.1 also calls
-"Intelligence Workspace / Knowledge Hub": an internal, cross-project
-research and institutional-memory surface, unrelated to project delivery.
-
-**Recommendation, not a decision this document can make:** rename this
-application (e.g. to "Knowledge Hub" alone) before it ships, to avoid two
-different products in the same platform sharing a name. Flagged as an open
-item for `docs/01-Product-Vision/` (§7 of that spec already lists it), not
-resolved here.
+**Resolved by ADR-0008:** this application is named **Knowledge Hub**, full
+stop — not "Intelligence Workspace / Knowledge Hub." The name "Intelligence
+Workspace" now refers exclusively to the existing SaaS product
+(`cvetanichin.org`) that EAS §8's asset map re-platforms into **Project
+Operations** (`docs/08-Project-Operations/`) — the post-award
+delivery/monitoring/reporting workspace. Knowledge Hub is a **separate,
+new** Layer 1 application: an internal, cross-project research and
+institutional-memory surface, unrelated to project delivery. Two different
+products no longer share a name; see ADR-0008 for the full decision record,
+including the amendment this makes to EAS §3.1 and §5's application table.
 
 **Scope, application/UX layer only** — a consumer of the Knowledge Platform
 (`docs/06-`) and Memory Engine (`docs/04-` §3), not a separate knowledge
@@ -110,8 +107,6 @@ Knowledge Platform's ingestion endpoint, pre-setting `document_type`).
 
 ## 5. Open Items for Product Owner
 
-- **Naming collision** (§0) — recommend renaming this application before
-  launch; not resolved here.
 - **`knowledge_documents.related_entity_type`/`related_entity_id`** (§1.2)
   — confirm this column exists in the Knowledge Platform spec's current
   schema, or treat as a follow-on migration if not.

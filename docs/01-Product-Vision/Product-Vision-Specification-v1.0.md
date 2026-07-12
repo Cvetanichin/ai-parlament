@@ -1,7 +1,7 @@
 ---
 document: Product Vision Specification
 version: 1.0
-status: DRAFT — pending Product Owner approval, especially §3 (naming) and §6 (success metrics), which are business decisions this document cannot make unilaterally
+status: APPROVED — approved by Product Owner 12 July 2026; §3 (product brand naming) and §6 (exact success-metric targets) remain non-blocking open items for later decision; the docs/09- naming collision this spec originally flagged in §7 is resolved by ADR-0008
 parent: ../../00-EAS-v1.0.md (EAS §1 What This Platform Is)
 ---
 
@@ -95,9 +95,9 @@ instruction, carried forward).
   public.** Opportunity Intelligence (Grant Studio §2) serves this
   Organisation's own pipeline, not a public search product.
 - **Not a general-purpose knowledge-management tool.** The Knowledge
-  Platform and Intelligence Workspace (`docs/09-`) are scoped to this
-  organisation's grant-lifecycle content — proposals, SOPs, lessons
-  learned, donor intelligence — not a general document store.
+  Platform and Knowledge Hub (`docs/09-`) are scoped to this organisation's
+  grant-lifecycle content — proposals, SOPs, lessons learned, donor
+  intelligence — not a general document store.
 - **Not a career/labor-market product** (EAS §8.4, restated here because
   it's a product-framing decision, not only an architecture one).
 
@@ -132,8 +132,7 @@ document does not set unilaterally:
 - **Exact numeric success targets** (§6) — directional framing only; targets
   need Product Owner input once there's a baseline period of real usage to
   measure against.
-- **Whether "Intelligence Workspace" (the new `docs/09-` application) and
-  the existing repurposed Intelligence Workspace SaaS (now `docs/08-Project
-  Operations/`) need different public-facing names** to avoid the naming
-  collision flagged in `docs/09-` §0 — a product-vision-level decision, not
-  an architecture one.
+- ~~**Naming collision between `docs/09-` and `docs/08-`**~~ — **resolved**,
+  ADR-0008: the new application is named Knowledge Hub; "Intelligence
+  Workspace" now refers exclusively to the existing SaaS product
+  re-platformed into `docs/08-Project-Operations/`.
