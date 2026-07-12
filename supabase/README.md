@@ -69,36 +69,58 @@ Deno bundler type-checks and resolves the full import graph at deploy time,
 so a broken import or syntax error would have failed the deploy outright,
 not just logged quietly later.
 
-**A full authenticated HTTP round-trip wasn't possible with the tools
-available this session** (no POST-capable HTTP client, no way to mint a
-test-user JWT, staging has zero `auth.users`). Instead, the actual
-sequence of database writes every function performs — `startInstance` →
-`runResearchPhase` → `decideGate('go_no_go')` → `runGovernanceLoop` →
-`decideGate('polish')` — was replayed directly against staging with a
-seeded test organisation/project, then cleaned up. Every write succeeded
-against the real constraints (`agent_runs.project_id NOT NULL`, every FK,
-every CHECK), and the resulting `workflow_instance_history` showed the
-exact expected state sequence: `pending → running → awaiting_human
-(research) → running (Go/No-Go approved) → awaiting_human (veto passed) →
-completed (Polish approved)`.
+**Verified two ways, escalating in strength:**
 
-**This dry run caught one real bug before it ever ran for real:**
-`decideGate` originally transitioned every approval to `completed`,
-regardless of which gate — correct for Polish, wrong for Go/No-Go, which
-needs to route back to `running` so the governance loop can be dispatched
-next. Fixed by adding an explicit `gateType: "go_no_go" | "polish"`
-parameter (matching the real MVP's per-gate `GATE_STATUS_FIELD` mapping in
-`humanGates.js`, which this port had initially collapsed into one generic
-outcome). Redeployed and re-verified — see `workflowEngine.ts`'s
-`decideGate` for the fix and its rationale.
+1. **SQL dry run** — the actual sequence of database writes every function
+   performs was replayed directly against staging with a seeded test
+   organisation/project, before any HTTP path was available. Caught one
+   real bug before it ever ran for real: `decideGate` originally
+   transitioned every approval to `completed` regardless of which gate —
+   correct for Polish, wrong for Go/No-Go, which needs to route back to
+   `running` so the governance loop can be dispatched next. Fixed by
+   adding an explicit `gateType: "go_no_go" | "polish"` parameter
+   (matching the real MVP's per-gate `GATE_STATUS_FIELD` mapping in
+   `humanGates.js`, which this port had initially collapsed into one
+   generic outcome). Redeployed.
 
-**What this does and doesn't prove:** confirmed — the schema/data model is
-correct, every constraint is satisfied, the state machine logic is
-correct, the code compiles and deploys cleanly. Not confirmed — the actual
-HTTP/JWT auth layer (`auth.ts`'s `resolveCaller`) and the LLM Gateway's
-live provider calls, since neither was exercised by this dry run. Those
-need either a real test user + session token, or a POST-capable HTTP
-client, to verify properly.
+2. **Full live HTTP test, with real auth** — a genuine test user was
+   created directly in staging's `auth.users`/`auth.identities`
+   (`phase1-test@quorum.test`), added as `owner` of a test organisation,
+   given a test project. A real session token was obtained via
+   Supabase's `/auth/v1/token` endpoint (executed via the Browser pane's
+   `fetch()`, since no other POST-capable HTTP client was available this
+   session) and used to call all three deployed functions in sequence —
+   research → Go/No-Go gate → governance loop → Polish gate — every call
+   returning `200` with the correct body. This is the strongest
+   verification done this session: it exercises `auth.ts`'s `resolveCaller`
+   JWT validation and `organisation_members` role check for real, not
+   simulated, and it re-confirmed the gate-type fix live (`go_no_go`
+   approval correctly returned `state: "running"`). The resulting
+   `workflow_instance_history` for that live run:
+
+   ```
+   awaiting_human  "Go/No-Go Risk Matrix ready — human decision required"
+   running         "go_no_go gate decision: approved"
+   running         "Writing ministry dispatched"
+   awaiting_human  "Draft cleared veto -- awaiting Polish Gate"
+   completed       "polish gate decision: approved (Looks good, cleared for the demo.)"
+   ```
+
+   The governance loop's veto result: all three tiers passed
+   (deterministic, lexical, and semantic — the semantic check running as
+   its own `compliance_judge` Agent Invocation, per the fix made during
+   porting), `attempts: 1`, `confidence: "high"`.
+
+**Still not exercised:** the LLM Gateway's live provider calls (no
+`ANTHROPIC_API_KEY`/`GEMINI_API_KEY` set as a function secret on staging,
+so every invocation used the mock fallback path — correctly, but that
+means the real Anthropic/Gemini HTTP call code in `llmGateway.ts` remains
+unverified). Setting a real key as a function secret would close this gap.
+
+**Test artifacts left in staging**, disposable, not yet cleaned up:
+`auth.users`/`auth.identities` row for `phase1-test@quorum.test`,
+"Phase 1 Test Org" (`organisations`), "Phase 1 Test Project` (`projects`),
+and one completed `workflow_instances` row plus its history/audit trail.
 
 ## What's NOT done yet
 
