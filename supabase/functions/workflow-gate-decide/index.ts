@@ -5,13 +5,17 @@
 // self-approve a gate (Parliament Core §2.4) — this endpoint is the only
 // path, and it is restricted to owner/admin (Security spec §2.2).
 //
-// Body: { workflowInstanceId, projectId, gateType: "go_no_go"|"polish", decision: "approved"|"rejected", note?, overrideJustification? }
+// Body: { workflowInstanceId, projectId, gateType: "go_no_go"|"polish"|"submission", decision: "approved"|"rejected", note?, overrideJustification? }
 //
 // overrideJustification is required (400 if missing) whenever the approval
 // overrides a flagged failure — Polish Gate after a Vote of No Confidence
-// escalation, or Go/No-Go against a NO-GO research recommendation. See
-// decideGate in workflowEngine.ts for the trigger logic and EAS §3.1's
-// Compliance Override control this implements.
+// escalation, Go/No-Go against a NO-GO research recommendation, or
+// Submission Gate approval when any earlier gate in this instance's
+// history was itself an override. Gates must also be taken in order
+// (go_no_go -> polish -> submission); calling one out of sequence now
+// returns gate_precondition_unmet (409). See decideGate in
+// workflowEngine.ts for the trigger logic and EAS §3.1's Compliance
+// Override control this implements.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller, requireGateRole } from "../_shared/auth.ts";
@@ -25,9 +29,9 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { workflowInstanceId, projectId, gateType, decision, note, overrideJustification } = body;
-    if (!workflowInstanceId || !projectId || !["go_no_go", "polish"].includes(gateType) || !["approved", "rejected"].includes(decision)) {
+    if (!workflowInstanceId || !projectId || !["go_no_go", "polish", "submission"].includes(gateType) || !["approved", "rejected"].includes(decision)) {
       return new Response(
-        JSON.stringify({ error: { code: "bad_request", message: "workflowInstanceId, projectId, gateType ('go_no_go'|'polish'), decision ('approved'|'rejected') are required" } }),
+        JSON.stringify({ error: { code: "bad_request", message: "workflowInstanceId, projectId, gateType ('go_no_go'|'polish'|'submission'), decision ('approved'|'rejected') are required" } }),
         { status: 400 },
       );
     }

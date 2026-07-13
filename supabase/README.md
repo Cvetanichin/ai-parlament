@@ -193,6 +193,54 @@ not just logged quietly later.
    detection logic (`getResearchRecommendation`) was read-tested against
    real `audit_events` data during this run.
 
+5. **Submission Gate added — override enforcement extended to a third gate,
+   plus a gate-sequencing integrity fix required to make it sound.** Once
+   three gates (Go/No-Go, Polish, Submission) share one generic
+   `awaiting_human` state, nothing previously stopped a client from calling
+   a gate out of order — most dangerously, `submission` straight after
+   Research, bypassing Go/No-Go and Polish (and their override checks)
+   entirely. `decideGate` now derives the expected next gate
+   (`getExpectedGateType`, reading the most recent relevant `audit_events`
+   row — `feasibility_assessment` → `go_no_go`, `veto_result` → `polish`,
+   an approved `polish` `gate_decision` → `submission`) and rejects a
+   mismatched `gateType` with `gate_precondition_unmet` (409). Polish Gate
+   approval no longer transitions to `completed` — it now returns to
+   `awaiting_human` for the Submission Gate; **only Submission Gate
+   approval reaches `completed`**, per EAS §9's Liability NFR ("no fully
+   autonomous submission path exists anywhere in the platform... always a
+   named, logged, human act").
+
+   A third override trigger was added for Submission: approving it requires
+   `overrideJustification` whenever *any* earlier gate in the instance's
+   history was itself an override (`hasAnyPriorOverride`, reading every
+   `gate_decision` audit event for the instance). This is deliberate —
+   an override doesn't get "used up" once logged at Polish or Go/No-Go; the
+   final, most consequential gate (the one that reaches a donor) requires
+   the human to consciously re-confirm it, not silently inherit an earlier
+   human's judgment call.
+
+   **Verified live, full sequence, against a real Anthropic model** (fresh
+   test user/org/project/instance): research → Go/No-Go approval →
+   *attempted Submission out of order, correctly blocked* (409,
+   `gate_precondition_unmet: instance is awaiting the 'polish' gate, not
+   'submission'` — the new sequencing check firing for real, not simulated)
+   → governance loop (the same character-count self-report mismatch
+   surfaced in run 3 above recurred independently here: draft self-reported
+   573 characters, actual length 687/1510 against a 600 limit, both
+   attempts correctly failed by the deterministic tier, exhausted the
+   threshold, escalated) → Polish Gate approval without justification
+   correctly blocked (400, `vote_of_no_confidence_escalated`) → Polish Gate
+   approval **with** justification succeeded and returned `state:
+   "awaiting_human"`, not `"completed"` (confirms the new non-terminal
+   Polish transition) → Submission Gate approval without justification
+   correctly blocked (400, `prior_override_in_workflow:
+   vote_of_no_confidence_escalated` — the new Submission trigger firing) →
+   Submission Gate approval **with** justification succeeded, returning
+   `state: "completed"` — the only point in this run the instance reached
+   `completed`. The full `workflow_instance_history` for this run confirms
+   the sequence exactly, including the `"— awaiting Submission Gate"`
+   transition-reason suffix.
+
 **Test artifacts**: every test run's users/orgs/projects/instances were
 created and then fully deleted from staging after verification — nothing
 left behind.

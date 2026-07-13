@@ -244,27 +244,71 @@ export async function runGovernanceLoop(params: RunGovernanceLoopParams) {
 // proposal.gates object. No API exists for a Workflow Definition or an
 // Agent to self-approve a gate (Parliament Core §2.4, EAS §7.2).
 //
-// gateType matters: this Phase 1 slice wires up two gates (matching
+// gateType matters: this Phase 1 slice wires up three gates (matching
 // humanGates.js's GATE_STATUS_FIELD, which differentiates per-gate next
 // states, not one generic approve/reject outcome). Approving Go/No-Go
 // routes back to 'running' so the governance loop can be dispatched next
-// (real MVP: goNoGo -> 'drafting'); approving Polish finishes the instance
-// (real MVP: polish -> 'awaiting_submission_gate', 'completed' here since
-// this slice doesn't implement the Submission Gate). A prior version of
-// this function collapsed both into one generic completed/failed outcome —
-// caught and fixed via the staging dry run before this was ever exercised
-// for real.
-export type GateType = "go_no_go" | "polish";
+// (real MVP: goNoGo -> 'drafting'); approving Polish now routes back to
+// 'awaiting_human' — Submission Gate next, not terminal (real MVP: polish
+// -> 'awaiting_submission_gate'); approving Submission is the only path
+// that reaches 'completed'. Per EAS §9's Liability NFR: "no fully
+// autonomous submission path exists anywhere in the platform... always a
+// named, logged, human act" — Submission Gate is deliberately the one gate
+// with no automated bypass of any kind. A prior version of this function
+// collapsed all outcomes into one generic completed/failed result — caught
+// and fixed via the staging dry run before this was ever exercised for
+// real.
+export type GateType = "go_no_go" | "polish" | "submission";
+
+// Gate-sequencing integrity — necessary once three gates share one generic
+// 'awaiting_human' state. Without this, a client could call gateType out
+// of order (most dangerously, 'submission' straight after Research),
+// bypassing intermediate gates and their override checks entirely — which
+// would make the override enforcement below decorative, not real. This
+// gap existed even with two gates (nothing stopped calling 'polish' before
+// 'go_no_go' was ever approved) but only became security-relevant once
+// skipping a gate could also skip a required override justification.
+//
+// Derived from the most recent relevant audit_events row rather than a new
+// column, consistent with the rest of this module's "reuse existing data"
+// pattern. Returns null if no relevant history exists yet (defensive
+// fallback: decideGate treats null as "can't determine, don't block" —
+// this shouldn't occur through the normal API flow, since decideGate's own
+// 'awaiting_human' precondition check already gates entry).
+async function getExpectedGateType(supabase: SupabaseClient, instanceId: string): Promise<GateType | null> {
+  const { data } = await supabase
+    .from("audit_events")
+    .select("action, detail, created_at")
+    .eq("target_id", instanceId)
+    .in("action", ["feasibility_assessment", "veto_result", "gate_decision"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  if (data.action === "feasibility_assessment") return "go_no_go";
+  if (data.action === "veto_result") return "polish";
+  if (data.action === "gate_decision") {
+    const detail = data.detail as { gateType?: GateType; decision?: string } | null;
+    if (detail?.gateType === "polish" && detail?.decision === "approved") return "submission";
+  }
+  return null;
+}
 
 // Override detection — EAS §3.1's Compliance Override control ("an
 // authorised human accepts a flagged risk with a logged justification; it
 // never silently suppresses a flag"), extended from Grant Studio §8.1's
-// compliance_findings-specific mechanism to this slice's two real flagged-
-// risk cases, confirmed via the live-model verification run (see
+// compliance_findings-specific mechanism to this slice's three real
+// flagged-risk cases, confirmed via the live-model verification run (see
 // supabase/README.md): a Polish Gate approval on a Vote of No Confidence
-// escalation, and a Go/No-Go approval against a NO-GO recommendation.
+// escalation, a Go/No-Go approval against a NO-GO recommendation, and now
+// a Submission Gate approval where any earlier gate in this instance's
+// history was itself an override. That last one is deliberate: an
+// override at Polish or Go/No-Go doesn't get "used up" once logged — the
+// final, most consequential gate (the one that reaches a donor) requires
+// the human to consciously re-confirm it, not silently inherit an earlier
+// human's judgment call.
 //
-// Single-governance-loop-pass assumption: this check looks for an
+// Single-governance-loop-pass assumption: wasEscalated looks for an
 // 'escalated' row anywhere in the instance's history. Safe today because
 // this Phase 1 slice runs the governance loop at most once per instance
 // (no redraft-after-Polish-rejection cycle exists yet). If that's added
@@ -299,6 +343,24 @@ async function getResearchRecommendation(supabase: SupabaseClient, instanceId: s
   return output?.recommendation ?? null;
 }
 
+// Every prior gate_decision for this instance, checked for wasOverride —
+// the Submission Gate's trigger. Reuses the same audit_events rows the
+// other two triggers read from; no new schema.
+async function hasAnyPriorOverride(
+  supabase: SupabaseClient,
+  instanceId: string,
+): Promise<{ has: boolean; reasons: string[] }> {
+  const { data } = await supabase
+    .from("audit_events")
+    .select("detail")
+    .eq("target_id", instanceId)
+    .eq("action", "gate_decision");
+  const overrides = (data ?? [])
+    .map((row) => row.detail as { wasOverride?: boolean; overrideReason?: string } | null)
+    .filter((d): d is { wasOverride: true; overrideReason?: string } => d?.wasOverride === true);
+  return { has: overrides.length > 0, reasons: overrides.map((o) => o.overrideReason ?? "unknown") };
+}
+
 export interface DecideGateParams {
   supabase: SupabaseClient;
   instanceId: string;
@@ -324,6 +386,13 @@ export async function decideGate(params: DecideGateParams) {
     throw new Error(`gate_precondition_unmet: instance is in state '${instance.state}', not 'awaiting_human'`);
   }
 
+  const expectedGate = await getExpectedGateType(supabase, instanceId);
+  if (expectedGate && expectedGate !== gateType) {
+    throw new Error(
+      `gate_precondition_unmet: instance is awaiting the '${expectedGate}' gate, not '${gateType}' — gates cannot be taken out of order`,
+    );
+  }
+
   let wasOverride = false;
   let overrideReason: string | null = null;
 
@@ -336,6 +405,12 @@ export async function decideGate(params: DecideGateParams) {
       if (recommendation === "NO-GO") {
         wasOverride = true;
         overrideReason = "research_recommended_no_go";
+      }
+    } else if (gateType === "submission") {
+      const prior = await hasAnyPriorOverride(supabase, instanceId);
+      if (prior.has) {
+        wasOverride = true;
+        overrideReason = `prior_override_in_workflow:${prior.reasons.join("+")}`;
       }
     }
   }
@@ -368,9 +443,15 @@ export async function decideGate(params: DecideGateParams) {
     nextState = "failed";
   } else if (gateType === "go_no_go") {
     nextState = "running"; // ready for the Writing ministry / governance loop
+  } else if (gateType === "polish") {
+    nextState = "awaiting_human"; // Submission Gate next, not terminal
   } else {
-    nextState = "completed"; // Polish gate cleared
+    // submission: the only path that ends here — EAS §9's Liability NFR,
+    // "no fully autonomous submission path exists anywhere in the platform."
+    nextState = "completed";
   }
+
+  const suffix = gateType === "polish" && nextState === "awaiting_human" ? " — awaiting Submission Gate" : "";
 
   await transition(
     supabase,
@@ -378,7 +459,7 @@ export async function decideGate(params: DecideGateParams) {
     nextState,
     `${gateType} gate decision: ${decision}${
       wasOverride ? ` (OVERRIDE: ${overrideJustification})` : note ? ` (${note})` : ""
-    }`,
+    }${suffix}`,
   );
 
   return { instanceId, gateType, state: nextState, wasOverride };
