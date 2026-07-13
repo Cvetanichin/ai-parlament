@@ -145,20 +145,55 @@ not just logged quietly later.
    hallucination deterministic tier exists to catch, now demonstrated
    against a real model rather than only reasoned about.
 
-   **One real design question this surfaced, not fixed unilaterally:** the
-   Polish Gate approved the veto-failed draft anyway, because
-   `decideGate` currently treats every `approved` decision identically
-   regardless of whether the instance arrived via a clean pass or a
-   forced escalation. Grant Studio spec §8.1 already names the right
-   mechanism for this — the Compliance Override control, which requires a
-   logged justification specifically when overriding a known failure — but
-   this Phase 1 slice doesn't yet distinguish "approve a clean draft" from
-   "override a known veto failure" at the code level; both currently just
-   take an optional free-text `note`. Worth deciding whether to require a
-   justification specifically when `vote_of_no_confidence_count > 0` at
-   Polish Gate time, before this reaches anything beyond a demo.
+4. **Compliance Override enforcement, added and verified after Product
+   Owner review of the design question above.** Confirmed: require
+   justification whenever Polish Gate approval follows a Vote of No
+   Confidence escalation. Also implemented, per the same review: require
+   justification whenever Go/No-Go approval follows a `NO-GO` research
+   recommendation — extending EAS §3.1's Compliance Override control (*"an
+   authorised human accepts a flagged risk with a logged justification; it
+   never silently suppresses a flag"*) from Grant Studio §8.1's
+   `compliance_findings`-specific mechanism to this slice's two real
+   flagged-risk cases.
 
-**Test artifacts**: both test runs' users/orgs/projects/instances were
+   `decideGate` (`workflowEngine.ts`) now detects both triggers and throws
+   `override_justification_required` (mapped to HTTP `400`) if
+   `overrideJustification` is missing on a triggering approval. Detection
+   reuses existing data rather than adding schema: the Polish trigger
+   checks for an `escalated` row in `workflow_instance_history`; the
+   Go/No-Go trigger reads the recommendation back out of the
+   `feasibility_assessment` `audit_events` row's `detail.output`. When an
+   override fires, `audit_events.detail` now records `wasOverride`,
+   `overrideReason`, and `overrideJustification` explicitly — the
+   distinction the original design question flagged as missing from the
+   audit trail is now queryable, not just present in a free-text note.
+
+   **Verified live, both paths, forcing escalation with a deliberately
+   impossible 10-character limit** (guarantees deterministic veto failure
+   regardless of what the model writes): Polish Gate approval without
+   `overrideJustification` correctly returned `400` with the exact
+   expected reason (`vote_of_no_confidence_escalated`); the same approval
+   with a justification returned `200`, `wasOverride: true`, confirmed via
+   `audit_events.detail` containing the full override record. This test
+   incidentally validated something beyond its own scope: faced with the
+   genuinely impossible constraint (10 characters vs. a required 15-
+   character phrase), Claude refused to fabricate a fake-compliant draft
+   and explained the contradiction instead — and the **semantic** veto
+   tier caught this independently of the deterministic tier, correctly
+   judging that "meta-commentary about impossible constraints" isn't a
+   scorable Annex A document. Two tiers, two independent reasons, same
+   correct verdict — the defense-in-depth the three-tier veto design
+   exists for, demonstrated rather than assumed.
+
+   The Go/No-Go trigger's detection logic was exercised live too (a real
+   research call returned `CONDITIONAL`, not `NO-GO`, so the trigger
+   correctly did *not* fire) but a live `NO-GO`-triggered block/override
+   pair wasn't captured this session, since real model output isn't
+   scriptable — the code path is identical to the Polish case and the
+   detection logic (`getResearchRecommendation`) was read-tested against
+   real `audit_events` data during this run.
+
+**Test artifacts**: every test run's users/orgs/projects/instances were
 created and then fully deleted from staging after verification — nothing
 left behind.
 

@@ -5,7 +5,13 @@
 // self-approve a gate (Parliament Core §2.4) — this endpoint is the only
 // path, and it is restricted to owner/admin (Security spec §2.2).
 //
-// Body: { workflowInstanceId, projectId, gateType: "go_no_go"|"polish", decision: "approved"|"rejected", note? }
+// Body: { workflowInstanceId, projectId, gateType: "go_no_go"|"polish", decision: "approved"|"rejected", note?, overrideJustification? }
+//
+// overrideJustification is required (400 if missing) whenever the approval
+// overrides a flagged failure — Polish Gate after a Vote of No Confidence
+// escalation, or Go/No-Go against a NO-GO research recommendation. See
+// decideGate in workflowEngine.ts for the trigger logic and EAS §3.1's
+// Compliance Override control this implements.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller, requireGateRole } from "../_shared/auth.ts";
@@ -18,7 +24,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { workflowInstanceId, projectId, gateType, decision, note } = body;
+    const { workflowInstanceId, projectId, gateType, decision, note, overrideJustification } = body;
     if (!workflowInstanceId || !projectId || !["go_no_go", "polish"].includes(gateType) || !["approved", "rejected"].includes(decision)) {
       return new Response(
         JSON.stringify({ error: { code: "bad_request", message: "workflowInstanceId, projectId, gateType ('go_no_go'|'polish'), decision ('approved'|'rejected') are required" } }),
@@ -37,6 +43,7 @@ Deno.serve(async (req: Request) => {
       gateType: gateType as GateType,
       decision,
       note,
+      overrideJustification,
       actorId: caller.userId,
     });
 
@@ -51,7 +58,9 @@ Deno.serve(async (req: Request) => {
           ? 404
           : message.startsWith("gate_precondition_unmet")
             ? 409
-            : 500;
+            : message.startsWith("override_justification_required")
+              ? 400
+              : 500;
     return new Response(JSON.stringify({ error: { code: "error", message } }), { status });
   }
 });

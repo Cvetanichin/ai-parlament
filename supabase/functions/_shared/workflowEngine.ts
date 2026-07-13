@@ -252,9 +252,52 @@ export async function runGovernanceLoop(params: RunGovernanceLoopParams) {
 // (real MVP: polish -> 'awaiting_submission_gate', 'completed' here since
 // this slice doesn't implement the Submission Gate). A prior version of
 // this function collapsed both into one generic completed/failed outcome —
-// caught and fixed via the staging dry run below, before this was ever
-// exercised for real.
+// caught and fixed via the staging dry run before this was ever exercised
+// for real.
 export type GateType = "go_no_go" | "polish";
+
+// Override detection — EAS §3.1's Compliance Override control ("an
+// authorised human accepts a flagged risk with a logged justification; it
+// never silently suppresses a flag"), extended from Grant Studio §8.1's
+// compliance_findings-specific mechanism to this slice's two real flagged-
+// risk cases, confirmed via the live-model verification run (see
+// supabase/README.md): a Polish Gate approval on a Vote of No Confidence
+// escalation, and a Go/No-Go approval against a NO-GO recommendation.
+//
+// Single-governance-loop-pass assumption: this check looks for an
+// 'escalated' row anywhere in the instance's history. Safe today because
+// this Phase 1 slice runs the governance loop at most once per instance
+// (no redraft-after-Polish-rejection cycle exists yet). If that's added
+// later, this needs scoping to "since the last gate decision," not "ever
+// in history," or a re-escalation after a redraft would be missed.
+async function wasEscalated(supabase: SupabaseClient, instanceId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("workflow_instance_history")
+    .select("id")
+    .eq("workflow_instance_id", instanceId)
+    .eq("state", "escalated")
+    .limit(1);
+  return !!(data && data.length > 0);
+}
+
+// research_ministry's recommendation isn't stored on a dedicated column —
+// it lives in the feasibility_assessment audit_events row's detail.output,
+// written by runResearchPhase. Reading it back here rather than adding a
+// new column keeps this a read of existing data, not new schema.
+async function getResearchRecommendation(supabase: SupabaseClient, instanceId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("audit_events")
+    .select("detail")
+    .eq("target_id", instanceId)
+    .eq("action", "feasibility_assessment")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const output = (data?.detail as Record<string, unknown> | undefined)?.output as
+    | { recommendation?: string }
+    | undefined;
+  return output?.recommendation ?? null;
+}
 
 export interface DecideGateParams {
   supabase: SupabaseClient;
@@ -263,11 +306,12 @@ export interface DecideGateParams {
   gateType: GateType;
   decision: "approved" | "rejected";
   note?: string;
+  overrideJustification?: string;
   actorId?: string;
 }
 
 export async function decideGate(params: DecideGateParams) {
-  const { supabase, instanceId, organisationId, gateType, decision, note, actorId } = params;
+  const { supabase, instanceId, organisationId, gateType, decision, note, overrideJustification, actorId } = params;
 
   const { data: instance, error } = await supabase
     .from("workflow_instances")
@@ -280,6 +324,28 @@ export async function decideGate(params: DecideGateParams) {
     throw new Error(`gate_precondition_unmet: instance is in state '${instance.state}', not 'awaiting_human'`);
   }
 
+  let wasOverride = false;
+  let overrideReason: string | null = null;
+
+  if (decision === "approved") {
+    if (gateType === "polish" && (await wasEscalated(supabase, instanceId))) {
+      wasOverride = true;
+      overrideReason = "vote_of_no_confidence_escalated";
+    } else if (gateType === "go_no_go") {
+      const recommendation = await getResearchRecommendation(supabase, instanceId);
+      if (recommendation === "NO-GO") {
+        wasOverride = true;
+        overrideReason = "research_recommended_no_go";
+      }
+    }
+  }
+
+  if (wasOverride && !overrideJustification?.trim()) {
+    throw new Error(
+      `override_justification_required: approving this ${gateType} gate overrides a flagged failure (${overrideReason}) — a justification is required, per EAS §3.1's Compliance Override control`,
+    );
+  }
+
   await writeAuditEvent(supabase, {
     organisationId,
     actorType: "human",
@@ -287,7 +353,14 @@ export async function decideGate(params: DecideGateParams) {
     action: "gate_decision",
     targetType: "workflow_instance",
     targetId: instanceId,
-    detail: { gateType, decision, note: note ?? null },
+    detail: {
+      gateType,
+      decision,
+      note: note ?? null,
+      wasOverride,
+      overrideReason,
+      overrideJustification: wasOverride ? overrideJustification : null,
+    },
   });
 
   let nextState: WorkflowState;
@@ -303,8 +376,10 @@ export async function decideGate(params: DecideGateParams) {
     supabase,
     instanceId,
     nextState,
-    `${gateType} gate decision: ${decision}${note ? ` (${note})` : ""}`,
+    `${gateType} gate decision: ${decision}${
+      wasOverride ? ` (OVERRIDE: ${overrideJustification})` : note ? ` (${note})` : ""
+    }`,
   );
 
-  return { instanceId, gateType, state: nextState };
+  return { instanceId, gateType, state: nextState, wasOverride };
 }
