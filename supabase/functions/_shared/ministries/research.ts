@@ -63,9 +63,23 @@ export function mockRun({ brief, donorGuidelines, constraints }: ResearchInput):
   return JSON.stringify({ score, recommendation, eligibilityFlags: flags, risks });
 }
 
+// Real models (confirmed against a live Anthropic call during Phase 1
+// verification — see supabase/README.md) commonly wrap JSON output in a
+// ```json ... ``` markdown fence despite an explicit "no prose" instruction
+// in the prompt. The real MVP's original parseResponse never hit this,
+// because it was only ever exercised against the mock path or Gemini
+// during development — this is a real gap the live-model test surfaced,
+// not a hypothetical one. Any ministry whose output is JSON-parsed needs
+// this same fence-stripping; it's applied here narrowly rather than
+// tightened at the LLM Gateway, since not every Agent's output is JSON.
+function stripCodeFence(raw: string): string {
+  const fenced = raw.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return fenced ? fenced[1] : raw;
+}
+
 export function parseResponse(raw: string): ResearchResult {
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(stripCodeFence(raw));
     return {
       score: Number(parsed.score) || 0,
       recommendation: parsed.recommendation || "NO-GO",

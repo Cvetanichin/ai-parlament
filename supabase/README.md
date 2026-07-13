@@ -111,16 +111,56 @@ not just logged quietly later.
    its own `compliance_judge` Agent Invocation, per the fix made during
    porting), `attempts: 1`, `confidence: "high"`.
 
-**Still not exercised:** the LLM Gateway's live provider calls (no
-`ANTHROPIC_API_KEY`/`GEMINI_API_KEY` set as a function secret on staging,
-so every invocation used the mock fallback path — correctly, but that
-means the real Anthropic/Gemini HTTP call code in `llmGateway.ts` remains
-unverified). Setting a real key as a function secret would close this gap.
+3. **Live-model verification, after `ANTHROPIC_API_KEY` was set as a
+   staging function secret** — the same full sequence, re-run against a
+   fresh test user/org/project/instance, this time exercising the actual
+   `fetch()` calls to `api.anthropic.com` in `llmGateway.ts`. Confirmed via
+   `agent_runs.token_cost` on every row (never `null`, unlike the mock
+   path): 6 real, billed Anthropic calls across the run — `research_
+   ministry` ×2 (one from a bug hit below, one clean), `writing_ministry`
+   ×2 and `compliance_judge` ×2 (Vote of No Confidence attempt 1 and 2).
 
-**Test artifacts left in staging**, disposable, not yet cleaned up:
-`auth.users`/`auth.identities` row for `phase1-test@quorum.test`,
-"Phase 1 Test Org" (`organisations`), "Phase 1 Test Project` (`projects`),
-and one completed `workflow_instances` row plus its history/audit trail.
+   **Found and fixed a second real bug, this one only reachable against a
+   real model:** the Research Ministry's `parseResponse` called
+   `JSON.parse` directly on the model's raw output. Claude routinely wraps
+   JSON in a ` ```json ... ``` ` markdown fence despite the prompt's
+   explicit "no prose" instruction — the mock path never produces this,
+   so it was invisible until a real call happened. Fixed with a
+   fence-stripping helper in `ministries/research.ts` (`stripCodeFence`),
+   redeployed, re-verified — the retry returned real, substantive Claude
+   output (a `78` score with six specific, non-templated risk items) with
+   no parse fallback triggered.
+
+   **The Vote of No Confidence loop encountered, and correctly handled, a
+   genuine model failure mode — not a code bug:** Claude's draft
+   self-reported "Character count: 499" but the actual string (including
+   markdown headers, a `---` divider, and framing text like "Here is the
+   revised Annex A narrative:") was 700 characters against a 500-character
+   limit. The deterministic veto tier — which trusts an actual `.length`
+   check, never the model's own claim — correctly failed it. Attempt 2
+   also failed the same way (error-log injection didn't stop the model
+   from adding wrapper text again), so the loop correctly exhausted its
+   threshold and escalated: `vetoPassed: false`, `attempts: 2`,
+   `confidence: "low"`. This is exactly the failure mode EAS's zero-
+   hallucination deterministic tier exists to catch, now demonstrated
+   against a real model rather than only reasoned about.
+
+   **One real design question this surfaced, not fixed unilaterally:** the
+   Polish Gate approved the veto-failed draft anyway, because
+   `decideGate` currently treats every `approved` decision identically
+   regardless of whether the instance arrived via a clean pass or a
+   forced escalation. Grant Studio spec §8.1 already names the right
+   mechanism for this — the Compliance Override control, which requires a
+   logged justification specifically when overriding a known failure — but
+   this Phase 1 slice doesn't yet distinguish "approve a clean draft" from
+   "override a known veto failure" at the code level; both currently just
+   take an optional free-text `note`. Worth deciding whether to require a
+   justification specifically when `vote_of_no_confidence_count > 0` at
+   Polish Gate time, before this reaches anything beyond a demo.
+
+**Test artifacts**: both test runs' users/orgs/projects/instances were
+created and then fully deleted from staging after verification — nothing
+left behind.
 
 ## What's NOT done yet
 
