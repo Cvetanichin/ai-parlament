@@ -13,8 +13,16 @@ multi-tenancy, identity, staging-validation discipline.
 
 **Phase 1 (Governance Layer)** — Workflow Engine + Agent Runtime
 (`../docs/03-Parliament-Core/`), re-platforming the two ministries with real
-MVP precedent (Research, Writing). **Deployed to staging
-(`urhocsijfzkepebsmstx`) and verified**, 12 July 2026 — see Verification below.
+MVP precedent (Research, Writing), all three Human Gates (Go/No-Go, Polish,
+Submission) with Compliance Override enforcement. **Deployed to staging
+(`urhocsijfzkepebsmstx`) and verified**, 12–14 July 2026 — see Verification
+below.
+
+**Phase 2 (Grant Studio) — started**: the Eligibility Engine (`../docs/07-
+Grant-Studio/` Module 2), the first module in the Roadmap spec's own
+dependency-ordered sequence ("brings Research's Eligibility API usage
+online; blocks Human Gate 2"). **Deployed to staging and verified**, 14 July
+2026 — see Verification below.
 
 ## What's built
 
@@ -41,9 +49,16 @@ supabase/
       ministries/
         research.ts      -- ported verbatim from researchMinistry.js
         writing.ts       -- ported verbatim from writingMinistry.js
+      eligibilityEngine.ts -- Eligibility Engine (Grant Studio §3): deterministic
+                             compliance_findings rollup per category, NOT an LLM
+                             Agent Invocation (see rationale below)
     workflow-research-run/    -- POST: runs the Go/No-Go Risk Matrix
     workflow-governance-run/  -- POST: Writing -> Veto -> Vote of No Confidence loop
-    workflow-gate-decide/     -- POST: Human Gate decision (owner/admin only)
+    workflow-gate-decide/     -- POST: Human Gate decision (owner/admin only),
+                                  three gates (go_no_go, polish, submission),
+                                  gate-sequencing + Compliance Override enforcement
+    eligibility-report-run/   -- POST: runs the Eligibility Engine for an Opportunity
+    eligibility-report-get/   -- GET: reads the latest eligibility_reports row
 ```
 
 Every module is ported from the real MVP source
@@ -55,12 +70,30 @@ engine's semantic check now runs as its own registered Agent
 Gateway call that would have bypassed EAS principle 8 (auditable by
 construction).
 
-## Known constraint discovered while building
+## Known constraints discovered while building
 
-`agent_runs.project_id` is `NOT NULL` on the real, live table — confirmed
-against the actual schema, not assumed. Every Agent Invocation (including
-the demo governance loop) must be recorded against a real `projects` row.
-The three Edge Functions above all take a `projectId` for this reason.
+- `agent_runs.project_id` is `NOT NULL` on the real, live table — confirmed
+  against the actual schema, not assumed. Every Agent Invocation (including
+  the demo governance loop) must be recorded against a real `projects` row.
+  The Edge Functions above all take a `projectId` for this reason.
+
+- **Eligibility Engine, discovered while building against the real, live
+  schema (not the spec's illustrative example):** Grant Studio §3.1's finding
+  shape and EAS §6.3's example both show `"status": "missing"`, but the real
+  `compliance_findings.status` CHECK constraint only allows `pass | warning |
+  fail | context_dependent | needs_review` — no `"missing"`. Separately,
+  `eligibility_reports.*_status` (the five per-category columns) are
+  constrained to `pass | warning | fail` only — no `context_dependent` slot
+  exists at that level, unlike `compliance_findings.status`. Rather than
+  invent a schema migration to store a distinction the real table doesn't
+  have a column for, `context_dependent` maps to `"warning"` at the
+  `eligibility_reports` write boundary; the specific "no real regulatory
+  content has been ingested for this category yet, this is not a real
+  assessment" caveat survives in `risk_flags` (a plain `text[]`, unconstrained)
+  rather than being silently lost. The richer `context_dependent` distinction
+  is preserved in the API response and in `audit_events.detail` (unconstrained
+  `jsonb`), so nothing is lost for a caller that wants it — only the DB
+  column's own resolution is coarser than the in-memory computation.
 
 ## Verification
 
@@ -245,11 +278,73 @@ not just logged quietly later.
 created and then fully deleted from staging after verification — nothing
 left behind.
 
+6. **Eligibility Engine (Grant Studio §3, Module 2) — built, deployed,
+   verified live, 14 July 2026.** Per the Roadmap spec's own Phase 2
+   dependency ordering ("Eligibility Engine... brings Research's Eligibility
+   API usage online; blocks Human Gate 2" — the first Phase 2 module, not an
+   arbitrary pick). `eligibilityEngine.ts`'s `runEligibilityCheck` reads real
+   `compliance_findings` rows (grouped by the five spec categories via
+   `flags->>'category'`, an additive use of an existing jsonb column rather
+   than a new one) and rolls each category up to `pass | warning | fail`
+   deterministically — no LLM call, unlike every other module built so far.
+   This is a deliberate departure from the Agent Runtime pattern, not an
+   oversight: Grant Studio §3 requires "never freeform text asserting a rule
+   exists," and with the Regulatory Knowledge Layer's ingestion pipeline
+   (§4: parser, chunker, rule extractor) not yet built, there is no real
+   corpus an LLM could ground a finding in — synthesizing a plausible
+   compliance verdict without one would be exactly the hallucination EAS
+   exists to prevent. For categories with zero real findings, the engine
+   returns the Regulatory Knowledge Layer spec §6.1's own explicit escape
+   hatch, `context_dependent`, with a `risk_flags` note naming the real gap
+   (no ingestion has run), rather than a fabricated pass.
+
+   **Verified live** with a fresh test org/project and two real Opportunity
+   rows: one with zero `compliance_findings` (confirms the honest
+   `context_dependent` → `needs_review` path — all five categories flagged,
+   nothing silently passed) and one with a real seeded `compliance_findings`
+   row (`severity: mandatory, status: fail`, tied to a real
+   `regulatory_clauses`/`regulatory_documents` row to satisfy the live
+   foreign key) plus one real `pass` finding — confirmed the mixed case:
+   `operational_capacity: fail` (mandatory failure) drove `recommendation:
+   no_go` even though `budget_ceiling_fit: pass` (a real, ungated pass)
+   came through correctly on its own category. `eligibility-report-get`
+   verified both the real persisted rows and a `404` for a nonexistent
+   opportunity. Two real, live schema mismatches were found and fixed
+   against the actual constraints (not the spec's illustrative shape) — see
+   "Known constraints discovered while building" above.
+
+   **Deliberately not wired into `decideGate`'s Go/No-Go gate yet.** Grant
+   Studio §3 states the gate "requires this report before it can be
+   approved," but `workflow_instances` in this slice targets a `project`
+   directly (brief supplied inline to `workflow-research-run`) — there is no
+   first-class `Opportunity` flowing through a workflow instance yet, since
+   Grant Studio Module 1 (Opportunity Intelligence) is unbuilt. Wiring the
+   precondition now would mean guessing an Opportunity↔instance linkage the
+   spec doesn't define anywhere, which risks locking in the wrong shape
+   silently. Flagged here rather than guessed at in code.
+
+**Test artifacts**: the Eligibility Engine test org/project/opportunities/
+compliance_findings/regulatory_clauses/regulatory_documents rows were all
+deleted from staging after verification — nothing left behind.
+
 ## What's NOT done yet
 
 - **`../docs/12-APIs/` §6's full endpoint catalog** is not implemented —
-  these three endpoints are a first slice, not the whole catalog.
-- **Grant Studio, Regulatory Knowledge Layer ingestion, the other seven
-  ministries** — out of scope for this Phase 1 slice, per `../docs/20-Roadmap/`.
+  the five endpoints above are a first slice, not the whole catalog.
+- **Regulatory Knowledge Layer ingestion pipeline (§4)** — `regulatory_documents`,
+  `regulatory_clauses`, and `compliance_findings` are real, live, empty
+  tables outside of this session's own test rows (cleaned up after
+  verification). The Eligibility Engine reads real rows when they exist but
+  nothing populates them yet — parsing, chunking, rule extraction, and
+  embeddings are all unbuilt. This is the biggest real gap blocking every
+  other Grant Studio module's compliance-checking from being more than
+  `context_dependent`.
+- **Eligibility Engine's Go/No-Go gate precondition** — not wired into
+  `decideGate`, per the note above.
+- **Opportunity Intelligence (Grant Studio Module 1)** — no real opportunity
+  discovery/scraping exists; this session's Opportunity rows were hand-seeded
+  test fixtures, not real ingested data.
+- **Grant Studio's remaining seven modules, the other eight ministries** —
+  out of scope for this slice, per `../docs/20-Roadmap/` Phase 2/3 sequencing.
 - **The `agent_runs`/`submission_packages` security-definer status-update
   function** — still an open item (Database Schema spec §14), not built.
