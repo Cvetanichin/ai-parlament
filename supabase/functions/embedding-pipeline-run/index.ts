@@ -78,7 +78,6 @@ function buildTextForRow(table: SourceTable, row: Record<string, unknown>): stri
 
 // --- Inlined from _shared/embeddingClient.ts (bundling fix) ---
 const EMBEDDING_MODEL = "text-embedding-3-small";
-const EMBEDDING_DIMENSIONS = 1536;
 const USD_PER_MILLION_INPUT_TOKENS = 0.02;
 
 interface EmbeddingBatchResult {

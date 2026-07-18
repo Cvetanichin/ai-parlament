@@ -8,8 +8,8 @@
 // instead of an in-memory proposal object.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { invokeAgent } from "./agentRuntime.ts";
-import { buildPrompt as buildResearchPrompt, mockRun as mockResearchRun, parseResponse as parseResearchResponse } from "./ministries/research.ts";
-import { buildPrompt as buildWritingPrompt, mockDraft } from "./ministries/writing.ts";
+import { buildPrompt as buildResearchPrompt, mockRun as mockResearchRun, parseResponse as parseResearchResponse, ResearchInput } from "./ministries/research.ts";
+import { buildPrompt as buildWritingPrompt, mockDraft, WritingInput } from "./ministries/writing.ts";
 import { runVeto, VetoConstraints } from "./vetoEngine.ts";
 
 export type WorkflowState =
@@ -118,8 +118,8 @@ export async function runResearchPhase(params: RunResearchParams) {
     projectId,
     organisationId,
     input: { brief, donorGuidelines, constraints },
-    buildPrompt: (i) => buildResearchPrompt(i as any),
-    mockRun: (i) => mockResearchRun(i as any),
+    buildPrompt: (i) => buildResearchPrompt(i as unknown as ResearchInput),
+    mockRun: (i) => mockResearchRun(i as unknown as ResearchInput),
     parseResponse: (raw) => parseResearchResponse(raw),
   });
 
@@ -188,8 +188,8 @@ export async function runGovernanceLoop(params: RunGovernanceLoopParams) {
       projectId,
       organisationId,
       input: { brief, constraints, errorLog },
-      buildPrompt: (i) => buildWritingPrompt(i as any),
-      mockRun: (i) => mockDraft(i as any),
+      buildPrompt: (i) => buildWritingPrompt(i as unknown as WritingInput),
+      mockRun: (i) => mockDraft(i as unknown as WritingInput),
     });
 
     const draft = String(draftResult.output);
