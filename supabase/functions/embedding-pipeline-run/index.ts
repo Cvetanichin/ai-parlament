@@ -27,19 +27,183 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
-import {
-  buildTextForRow,
-  selectColumnsFor,
-  SOURCE_TABLES,
-  SourceTable,
-} from "../_shared/embeddingSources.ts";
-import {
-  embedBatch,
-  EMBEDDING_MODEL,
-  EmbeddingProviderError,
-  toPgVectorLiteral,
-} from "../_shared/embeddingClient.ts";
+
+// --- Inlined from _shared/supabaseAdmin.ts (bundling fix) ---
+function supabaseAdmin() {
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(url, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+}
+
+// --- Inlined from _shared/embeddingSources.ts (bundling fix) ---
+type SourceTable = "regulatory_clauses" | "knowledge_chunks" | "knowledge_documents" | "opportunities" | "memory_entries";
+
+const SOURCE_TABLES: SourceTable[] = [
+  "regulatory_clauses",
+  "knowledge_chunks",
+  "knowledge_documents",
+  "opportunities",
+  "memory_entries",
+];
+
+type TextFieldSpec = { kind: "single"; column: string } | { kind: "join"; columns: string[]; separator: string };
+
+const TEXT_FIELD_BY_TABLE: Record<SourceTable, TextFieldSpec> = {
+  regulatory_clauses: { kind: "single", column: "text" },
+  knowledge_chunks: { kind: "single", column: "content" },
+  knowledge_documents: { kind: "single", column: "content" },
+  opportunities: { kind: "join", columns: ["title", "description"], separator: "\n" },
+  memory_entries: { kind: "single", column: "content" },
+};
+
+function selectColumnsFor(table: SourceTable): string {
+  const spec = TEXT_FIELD_BY_TABLE[table];
+  const cols = spec.kind === "single" ? [spec.column] : spec.columns;
+  return ["id", ...cols].join(",");
+}
+
+function buildTextForRow(table: SourceTable, row: Record<string, unknown>): string | null {
+  const spec = TEXT_FIELD_BY_TABLE[table];
+  if (spec.kind === "single") {
+    const v = row[spec.column];
+    return typeof v === "string" && v.trim().length > 0 ? v : null;
+  }
+  const parts = spec.columns
+    .map((c) => (typeof row[c] === "string" ? (row[c] as string).trim() : ""))
+    .filter((s) => s.length > 0);
+  return parts.length > 0 ? parts.join(spec.separator) : null;
+}
+
+// --- Inlined from _shared/embeddingClient.ts (bundling fix) ---
+const EMBEDDING_MODEL = "text-embedding-3-small";
+const USD_PER_MILLION_INPUT_TOKENS = 0.02;
+
+interface EmbeddingBatchResult {
+  vectors: number[][];
+  totalTokens: number;
+  model: string;
+  estimatedCostUsd: number;
+  durationMs: number;
+}
+
+class EmbeddingProviderError extends Error {
+  readonly status: number;
+  readonly retriable: boolean;
+  constructor(message: string, status: number, retriable: boolean) {
+    super(message);
+    this.status = status;
+    this.retriable = retriable;
+  }
+}
+
+async function embedBatch(inputs: string[]): Promise<EmbeddingBatchResult> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) {
+    throw new EmbeddingProviderError(
+      "OPENAI_API_KEY is not set in the function environment (Supabase Vault)",
+      500,
+      false,
+    );
+  }
+  if (inputs.length === 0) {
+    throw new EmbeddingProviderError("embedBatch called with empty input list", 400, false);
+  }
+
+  const started = performance.now();
+  const maxAttempts = 4;
+  let lastErr: EmbeddingProviderError | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: inputs,
+          encoding_format: "float",
+        }),
+      });
+
+      if (res.status === 429 || res.status >= 500) {
+        const body = await res.text();
+        lastErr = new EmbeddingProviderError(
+          `OpenAI embeddings ${res.status}: ${body.slice(0, 400)}`,
+          res.status,
+          true,
+        );
+        if (attempt < maxAttempts) {
+          const backoffMs = 500 * Math.pow(2, attempt - 1);
+          await new Promise((r) => setTimeout(r, backoffMs));
+          continue;
+        }
+        throw lastErr;
+      }
+      if (!res.ok) {
+        const body = await res.text();
+        throw new EmbeddingProviderError(
+          `OpenAI embeddings ${res.status}: ${body.slice(0, 400)}`,
+          res.status,
+          false,
+        );
+      }
+
+      const data = await res.json() as {
+        data: Array<{ embedding: number[]; index: number }>;
+        model: string;
+        usage: { prompt_tokens: number; total_tokens: number };
+      };
+
+      if (!Array.isArray(data.data) || data.data.length !== inputs.length) {
+        throw new EmbeddingProviderError(
+          `OpenAI embeddings returned ${data.data?.length ?? 0} vectors for ${inputs.length} inputs`,
+          500,
+          false,
+        );
+      }
+      const vectors = [...data.data]
+        .sort((a, b) => a.index - b.index)
+        .map((d) => d.embedding);
+      const totalTokens = data.usage?.total_tokens ?? 0;
+      return {
+        vectors,
+        totalTokens,
+        model: data.model ?? EMBEDDING_MODEL,
+        estimatedCostUsd: (totalTokens * USD_PER_MILLION_INPUT_TOKENS) / 1_000_000,
+        durationMs: performance.now() - started,
+      };
+    } catch (err) {
+      if (err instanceof EmbeddingProviderError) {
+        if (err.retriable && attempt < maxAttempts) {
+          lastErr = err;
+          const backoffMs = 500 * Math.pow(2, attempt - 1);
+          await new Promise((r) => setTimeout(r, backoffMs));
+          continue;
+        }
+        throw err;
+      }
+      const wrapped = new EmbeddingProviderError((err as Error).message, 0, true);
+      if (attempt < maxAttempts) {
+        lastErr = wrapped;
+        const backoffMs = 500 * Math.pow(2, attempt - 1);
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
+      }
+      throw wrapped;
+    }
+  }
+
+  throw lastErr ?? new EmbeddingProviderError("embedBatch exhausted retries", 0, true);
+}
+
+function toPgVectorLiteral(vec: number[]): string {
+  return `[${vec.join(",")}]`;
+}
 
 // ADR-0010 §6: hard cap on batch size, enforced server-side and not
 // overridable by callers. OpenAI's embeddings endpoint accepts up to

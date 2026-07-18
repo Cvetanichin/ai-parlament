@@ -39,4 +39,9 @@ jobs:
         run: deno lint
 
       - name: Run tests
-        run: deno test -A
+        run: |
+          if find . -name '*_test.ts' -o -name '*.test.ts' | grep -q .; then
+            deno test -A
+          else
+            echo "No test files yet (see docs/18-Testing/) — nothing to run."
+          fi
