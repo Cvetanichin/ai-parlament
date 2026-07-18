@@ -82,4 +82,10 @@ Claude Code implements Phase C.1 only, against a staging branch first per ADR-00
 
 ## 8. Status as of 18 Jul 2026
 
-Not started. Explicitly gated, per the Product Owner's original instruction, on ADR-0010 Tasks 1–3 being confirmed and reviewed first. ADR-0010's Tasks 1 and 2 are complete and deployed to staging; Task 3 (the `regulatory_clauses` backfill) is blocked on an external `OPENAI_API_KEY` billing issue, not implementation. Phase C.1 of this ADR has not begun.
+**Phase C.1 complete**, applied to production (`jorpfsrvhnelnboupiyx`) with explicit Product Owner go-ahead, after ADR-0010 Tasks 1–3 were confirmed done (the `regulatory_clauses` backfill's `OPENAI_API_KEY` billing issue was resolved and the backfill completed: 75/75, 0 failures).
+
+Applied `11_phase1_seed` (already staging-validated per ADR-0007, unchanged) to production via `apply_migration`. Verified before applying: production's existing `ai_agents` rows (`compliance-agent`, `me-agent`, `reporting-agent`, the live SaaS app's agents) use hyphenated slugs with zero collision against this migration's underscore-separated ministry slugs (`research_ministry`, `writing_ministry`, `compliance_judge`) — the `on conflict (slug) do nothing` guard was never actually exercised.
+
+Exit check (§4): `workflow_definitions` in production has exactly 1 row, verified byte-for-byte identical to staging's (`states`, `transitions`, `gates`, `vote_of_no_confidence_threshold = 2`). The three ministry agents and their `prompt_modules` rows (`status = 'active'`, `approval_state = 'approved'`) are present and correctly linked.
+
+Per §7, stopping here for review — Phase C.2 (deploying the governance edge functions to production in shadow mode) is not started.
