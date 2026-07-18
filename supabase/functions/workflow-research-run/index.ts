@@ -11,6 +11,13 @@ import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller } from "../_shared/auth.ts";
 import { runResearchPhase } from "../_shared/workflowEngine.ts";
 
+// ADR-0009 §4 Phase C.2: read at invocation time. Defaults to "shadow" --
+// the safe default -- when unset, so no secret has to be configured for
+// this phase to be meaningful. "enforced" is defined here but not yet
+// activated: nothing in this function's behaviour branches on it until
+// Phase C.6 re-platforms the live ministries onto the governance loop.
+const GOVERNANCE_MODE = Deno.env.get("GOVERNANCE_MODE") ?? "shadow";
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: { code: "method_not_allowed", message: "POST only" } }), { status: 405 });
@@ -59,7 +66,7 @@ Deno.serve(async (req: Request) => {
       constraints,
     });
 
-    return new Response(JSON.stringify({ workflowInstanceId, result: result.output, agentRunId: result.agentRunId }), {
+    return new Response(JSON.stringify({ workflowInstanceId, result: result.output, agentRunId: result.agentRunId, governanceMode: GOVERNANCE_MODE }), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
