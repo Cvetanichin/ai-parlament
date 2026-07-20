@@ -24,6 +24,11 @@ export interface InvokeAgentParams {
   mockRun: (input: Record<string, unknown>) => string;
   parseResponse?: (raw: string) => unknown;
   source?: "production" | "house_of_parliament";
+  // House of Parliament spec §6: Playground/Replay Sessions rehearse the
+  // *same* invocation path production traffic uses, but deterministically
+  // against the mock provider — not merely whatever happens to be
+  // registered, and not contingent on an API key being absent/failing.
+  forceMock?: boolean;
 }
 
 export interface InvokeAgentResult {
@@ -111,12 +116,14 @@ export async function invokeAgent(params: InvokeAgentParams): Promise<InvokeAgen
     .eq("status", "active")
     .maybeSingle();
 
-  const binding: ModelBinding = version
-    ? { provider: version.model_provider as ModelBinding["provider"], model: version.model_name }
-    : { provider: "mock", model: "mock" };
+  const binding: ModelBinding = params.forceMock
+    ? { provider: "mock", model: "mock" }
+    : version
+      ? { provider: version.model_provider as ModelBinding["provider"], model: version.model_name }
+      : { provider: "mock", model: "mock" };
 
   const prompt = params.buildPrompt(input);
-  const { text: raw, tokenCost, latencyMs, usedProvider } = await generateText(prompt, {
+  const { text: raw, tokenCost, latencyMs, usedProvider, redactions } = await generateText(prompt, {
     binding,
     mock: () => params.mockRun(input),
   });
@@ -139,6 +146,26 @@ export async function invokeAgent(params: InvokeAgentParams): Promise<InvokeAgen
     .select("id")
     .single();
   if (runErr) throw runErr;
+
+  // Security spec §4.4: "Every redaction... writes an Audit Event: which
+  // filter stage, which placeholder type, the source document/session —
+  // never the redacted content itself." agent_runs.input_data above still
+  // holds the *unredacted* prompt inputs (that's this repo's existing
+  // debugging/replay contract for every ministry call, unchanged here) —
+  // this second, separate row is the one place that specifically records
+  // that a redaction happened, without duplicating or exposing what was
+  // redacted.
+  if (redactions.length > 0) {
+    await supabase.from("audit_events").insert({
+      organisation_id: organisationId,
+      actor_type: "system",
+      action: "pii_redacted",
+      target_type: "agent_run",
+      target_id: run.id,
+      agent_run_id: run.id,
+      detail: { filterStage: "llm_gateway_pre_prompt", agentSlug, redactions },
+    });
+  }
 
   return {
     agentRunId: run.id,

@@ -76,6 +76,49 @@ function buildTextForRow(table: SourceTable, row: Record<string, unknown>): stri
   return parts.length > 0 ? parts.join(spec.separator) : null;
 }
 
+// --- Inlined from _shared/piiFilter.ts (bundling fix, same reason as the
+// rest of this file's inlining) ---
+// Security spec §4.2 point 1: "a redaction stage inserted into the shared
+// parsing/chunking pipeline... before the embedding step, so beneficiary
+// PII never enters the vector index in the first place." Scoped to
+// knowledge_chunks/knowledge_documents/memory_entries only —
+// regulatory_clauses (legal/regulatory text) and opportunities (donor/
+// grant metadata) are structurally never beneficiary data, and running a
+// contact-info filter over donor content would strip exactly the
+// programme-officer emails the platform needs (Security spec §4.1: donor/
+// partner/staff contact info is explicitly out of scope for this filter).
+type RedactionType = "gps" | "national_id" | "phone" | "email";
+const PII_FILTERED_TABLES: SourceTable[] = ["knowledge_chunks", "knowledge_documents", "memory_entries"];
+const GPS_PATTERN = /-?\d{1,3}\.\d{3,},\s*-?\d{1,3}\.\d{3,}/g;
+const NATIONAL_ID_PATTERN = /\b\d{2,4}[-\s]?\d{2,4}[-\s]?\d{2,6}\b/g;
+const PHONE_PATTERN = /\+?\d{1,3}[-.\s]?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b/g;
+const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const PII_PLACEHOLDER: Record<RedactionType, string> = {
+  gps: "[GPS_REDACTED]",
+  national_id: "[NATIONAL_ID_REDACTED]",
+  phone: "[PHONE_REDACTED]",
+  email: "[EMAIL_REDACTED]",
+};
+
+function redactBeneficiaryPII(text: string): { redactedText: string; redactions: Array<{ type: RedactionType; count: number }> } {
+  let redactedText = text;
+  const redactions: Array<{ type: RedactionType; count: number }> = [];
+  const passes: Array<[RedactionType, RegExp]> = [
+    ["gps", GPS_PATTERN],
+    ["email", EMAIL_PATTERN],
+    ["phone", PHONE_PATTERN],
+    ["national_id", NATIONAL_ID_PATTERN],
+  ];
+  for (const [type, pattern] of passes) {
+    const matches = redactedText.match(pattern);
+    if (matches && matches.length > 0) {
+      redactedText = redactedText.replace(pattern, PII_PLACEHOLDER[type]);
+      redactions.push({ type, count: matches.length });
+    }
+  }
+  return { redactedText, redactions };
+}
+
 // --- Inlined from _shared/embeddingClient.ts (bundling fix) ---
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const USD_PER_MILLION_INPUT_TOKENS = 0.02;
@@ -244,6 +287,7 @@ interface ResponseBody {
   total_tokens: number;
   estimated_cost_usd: number;
   duration_ms: number;
+  pii_redactions: Array<{ type: RedactionType; count: number }>;
 }
 
 Deno.serve(async (req: Request) => {
@@ -286,7 +330,9 @@ Deno.serve(async (req: Request) => {
     total_tokens: 0,
     estimated_cost_usd: 0,
     duration_ms: 0,
+    pii_redactions: [],
   };
+  const redactionTotals = new Map<RedactionType, number>();
 
   try {
     const rows = await loadRows(admin, body, forceReembed);
@@ -300,7 +346,7 @@ Deno.serve(async (req: Request) => {
         response.skipped_already_embedded++;
         continue;
       }
-      const text = buildTextForRow(body.source_table, row);
+      let text = buildTextForRow(body.source_table, row);
       if (text === null) {
         response.failed++;
         response.failures.push({
@@ -309,8 +355,16 @@ Deno.serve(async (req: Request) => {
         });
         continue;
       }
+      if (PII_FILTERED_TABLES.includes(body.source_table)) {
+        const filtered = redactBeneficiaryPII(text);
+        text = filtered.redactedText;
+        for (const r of filtered.redactions) {
+          redactionTotals.set(r.type, (redactionTotals.get(r.type) ?? 0) + r.count);
+        }
+      }
       workable.push({ id: String(row.id), text });
     }
+    response.pii_redactions = Array.from(redactionTotals, ([type, count]) => ({ type, count }));
 
     // ADR-0010 §9 step 3: batch up to batch_size per provider API call.
     for (let i = 0; i < workable.length; i += batchSize) {
@@ -521,6 +575,9 @@ async function writeAuditEvent(
       total_tokens: response.total_tokens,
       estimated_cost_usd: response.estimated_cost_usd,
       duration_ms: response.duration_ms,
+      // Security spec §4.4: filter stage + placeholder types + counts,
+      // never the redacted content itself.
+      pii_redactions: response.pii_redactions,
     },
   });
   if (error) {

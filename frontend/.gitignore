@@ -1,0 +1,13 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Secrets — Supabase URL/keys, never committed
+.env
+.env.local
+.env.*.local
+
+# Editor/OS
+.DS_Store
