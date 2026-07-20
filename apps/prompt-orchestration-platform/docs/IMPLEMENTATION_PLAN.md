@@ -39,7 +39,7 @@ The repo already has partial implementation from earlier work. Do not assume a b
 
 ## Phase 2 — v1 Specialists, Validators, Formatter
 
-- [ ] 2.1 Seed `SPECIALIST_ME_FRAMEWORK`, `SPECIALIST_PRODUCT_MVP`, `SPECIALIST_PROMPT_ENGINEERING` rows.
+- [ ] 2.1 Seed `SPECIALIST_ME_FRAMEWORK`, `SPECIALIST_PRODUCT_MVP`, `SPECIALIST_PROMPT_ENGINEERING` rows. Use the improved prompt text in `SPECIALIST_PROMPTS_SEED.md` (enriched from the retired `PromptLibraryV7_2.jsx` prompt library), not the plainer drafts in `04_PromptLibrary_SystemPromptsStructure.md` §10/§14/§15.
 - [ ] 2.2 Seed `VALIDATOR_GENERIC`, `VALIDATOR_INDICATORS`, `VALIDATOR_MVP_REALISM` rows + schemas.
 - [ ] 2.3 Seed `FORMATTER_TABLE_FIRST` row.
 - [ ] 2.4 Seed `RUN_LOGGER` row + schema.
