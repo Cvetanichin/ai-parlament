@@ -10,12 +10,12 @@ No phase begins until the prior phase's acceptance gate (`BUILD_SPEC.md` §6) is
 
 The repo already has partial implementation from earlier work. Do not assume a blank slate.
 
-- [ ] 0.1 Inventory the existing repo structure against `BUILD_SPEC.md` §2. List what exists, what's missing, what's present but diverges from spec.
-- [ ] 0.2 Inventory existing database migrations (if any) against `DATABASE.md`. Identify schema drift.
-- [ ] 0.3 Inventory existing Edge Function code against `EDGE_FUNCTIONS.md` and `PROMPT_ENGINE.md` — specifically check whether the runner already has the `json_object`-mode / silent-fallback-parsing weak point described in ADR-010, since that's the primary defect this spec exists to fix.
-- [ ] 0.4 Produce a written gap report (`docs/RECONCILIATION_REPORT.md`) — no code changes in this phase. The project owner reviews and confirms before Phase 1 starts.
+- [x] 0.1 Inventory the existing repo structure against `BUILD_SPEC.md` §2. List what exists, what's missing, what's present but diverges from spec.
+- [x] 0.2 Inventory existing database migrations (if any) against `DATABASE.md`. Identify schema drift. *(Partial — blocked on confirming the target Supabase project; see report.)*
+- [x] 0.3 Inventory existing Edge Function code against `EDGE_FUNCTIONS.md` and `PROMPT_ENGINE.md` — specifically check whether the runner already has the `json_object`-mode / silent-fallback-parsing weak point described in ADR-010, since that's the primary defect this spec exists to fix.
+- [x] 0.4 Produce a written gap report (`docs/RECONCILIATION_REPORT.md`) — no code changes in this phase. The project owner reviews and confirms before Phase 1 starts.
 
-**Acceptance gate:** gap report exists, reviewed, confirmed by owner.
+**Acceptance gate:** gap report exists at `RECONCILIATION_REPORT.md`, **not yet reviewed/confirmed by owner** — three open decisions block Phase 1 (target Supabase project, relationship between the two prompt sources, fate of `PromptLibraryV7_2.jsx`). Do not start Phase 1 until the owner confirms.
 
 ---
 
