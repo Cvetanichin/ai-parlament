@@ -15,11 +15,13 @@ The repo already has partial implementation from earlier work. Do not assume a b
 - [x] 0.3 Inventory existing Edge Function code against `EDGE_FUNCTIONS.md` and `PROMPT_ENGINE.md` — specifically check whether the runner already has the `json_object`-mode / silent-fallback-parsing weak point described in ADR-010, since that's the primary defect this spec exists to fix.
 - [x] 0.4 Produce a written gap report (`docs/RECONCILIATION_REPORT.md`) — no code changes in this phase. The project owner reviews and confirms before Phase 1 starts.
 
-**Acceptance gate:** gap report exists at `RECONCILIATION_REPORT.md`, **not yet reviewed/confirmed by owner** — three open decisions block Phase 1 (target Supabase project, relationship between the two prompt sources, fate of `PromptLibraryV7_2.jsx`). Do not start Phase 1 until the owner confirms.
+**Acceptance gate:** gap report exists at `RECONCILIATION_REPORT.md`. All three original open decisions are now resolved by the Product Owner (2026-07-20) — see `docs/21-ADRs/0011-prompt-orchestration-platform-as-parliament-core-extension.md` (repo root `docs/`). **A new blocker replaced them:** ADR-0011 changes this phase's target architecture materially (see banner below) and Phase 1 needs a re-scoping pass before its tasks below are still accurate. Do not start Phase 1 execution until that re-scoping happens.
 
 ---
 
 ## Phase 1 — Control Plane
+
+> **Superseded by ADR-0011 — re-scoping required before these tasks are executed as written.** There is no standalone control plane and no fresh 11-table schema (see ADR-0011 and the banners on `BUILD_SPEC.md`/`DATABASE.md`). 1.1–1.3 (schema + control-plane seed) and 1.4–1.8 (`orchestrate-task`'s own runtime files) do not apply as written — the target is now extending `ai_agents`/`prompt_modules`/`workflow_definitions`/`agent_runs` in `cso-playground` and reusing Parliament Core's existing Workflow Engine/Agent Runtime instead. The tasks below are kept as a record of the original design intent (useful for 1.9–1.11's RPC/validation/test *shape*, which likely still needs equivalents) — a genuine re-scoped task list should be produced as its own Phase 1 planning step before execution starts.
 
 - [ ] 1.1 Migration `001_init_schema.sql` — all 11 tables per `DATABASE.md` §2 (reconciled against Phase 0 findings, not blindly re-applied if tables already exist).
 - [ ] 1.2 Migration `002_seed_core_modules.sql` — seed rows for `GLOBAL_CONTROL`, `INTAKE_NORMALIZER`, `INTENT_CLASSIFIER`, `WORKFLOW_ROUTER`, `TASK_PLANNER` (prompt text sourced verbatim from `04_PromptLibrary_SystemPromptsStructure.md`, per `PROMPT_MODULES.md` §5).

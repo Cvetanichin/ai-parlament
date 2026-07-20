@@ -2,6 +2,8 @@
 
 **Master implementation specification. This is the single source of truth for what to build. Where any other document conflicts with this one, BUILD_SPEC.md wins unless a newer ADR supersedes it — ADRs always win over docs.**
 
+> **Superseded in part by `docs/21-ADRs/0011-prompt-orchestration-platform-as-parliament-core-extension.md` (repo root `docs/`, EAS's ADR series).** §2's standalone `supabase/functions/orchestrate-task/` and §3's fresh 11-table schema are not being built as written — this system is now an extension of EAS's Parliament Core, running in the `cso-playground` Supabase project and reusing its Workflow Engine/Agent Runtime instead of a bespoke control plane. The module registry, prompt contracts (§5), and validation design below remain the reference for *what* each specialist/validator/formatter does — read ADR-0011 first for *how* it's actually wired.
+
 ---
 
 ## 1. Scope of v1

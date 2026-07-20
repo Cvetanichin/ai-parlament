@@ -2,6 +2,8 @@
 
 Source of truth for schema. This is a direct translation of the validated Airtable data model (`04_PromptLibrary_SystemPromptsStructure.md` §"Exact Airtable field-by-field setup sheet") into Postgres, with the `strict_output_enabled` governance column added per the structured-outputs decision (`chat convers.rtf`, `PROMPT_ENGINE.md`). Do not redesign this schema without a new ADR (see `PROJECT.md` §6).
 
+> **A new ADR exists: `docs/21-ADRs/0011-prompt-orchestration-platform-as-parliament-core-extension.md`** (repo root `docs/`, EAS's ADR series — per this file's own rule above, that ADR now governs). §2's `001_init_schema.sql` is not being applied fresh — `prompt_modules` and `projects` below collide by name with tables that already exist and mean something different in the target database (`cso-playground`). `prompt_modules`, `workflows`, and `agent_runs`'s role are physically `ai_agents`/`prompt_modules`/`workflow_definitions`/`agent_runs` in that live schema instead (same pattern as ADR-0007 §3.6 for Parliament Core itself). Which of the remaining tables (`context_assets`, `routing_rules`, `output_formats`, `validators`, `users`, `task_runs`, `run_steps`) become genuinely new tables is Phase 1 design work, not yet decided. The field-level contracts below remain the reference for what each concept needs to capture.
+
 ## 1. Table overview
 
 | Table | Primary key | Purpose |
