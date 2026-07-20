@@ -21,7 +21,10 @@ The repo already has partial implementation from earlier work. Do not assume a b
 
 ## Phase 1 — Control Plane
 
-> **Superseded by ADR-0011 — re-scoping required before these tasks are executed as written.** There is no standalone control plane and no fresh 11-table schema (see ADR-0011 and the banners on `BUILD_SPEC.md`/`DATABASE.md`). 1.1–1.3 (schema + control-plane seed) and 1.4–1.8 (`orchestrate-task`'s own runtime files) do not apply as written — the target is now extending `ai_agents`/`prompt_modules`/`workflow_definitions`/`agent_runs` in `cso-playground` and reusing Parliament Core's existing Workflow Engine/Agent Runtime instead. The tasks below are kept as a record of the original design intent (useful for 1.9–1.11's RPC/validation/test *shape*, which likely still needs equivalents) — a genuine re-scoped task list should be produced as its own Phase 1 planning step before execution starts.
+**Re-scoped. The task list below (1.1–1.11) is the original, pre-ADR-0011 design intent — kept for the historical record, not for execution.** The actual Phase 1 task list is now `PHASE1_RESCOPING.md` §7, produced 2026-07-20: no fresh 11-table schema, no standalone `orchestrate-task` function, no OpenAI integration. Instead: 5 new tables + additive columns on `prompt_modules`/`projects`/`profiles`, a `generateStructured()` addition to the existing `llmGateway.ts` (ADR-0012), new agents registered through the existing `ensureAgent`/`ensureActivePromptVersion`, and a new `prompt-orchestration-run` Edge Function following the live `workflow-governance-run` pattern. Read `PHASE1_RESCOPING.md` in full before starting any Phase 1 work — the mapping from each item below to its replacement is documented there, not repeated here.
+
+<details>
+<summary>Original task list (superseded, kept for reference)</summary>
 
 - [ ] 1.1 Migration `001_init_schema.sql` — all 11 tables per `DATABASE.md` §2 (reconciled against Phase 0 findings, not blindly re-applied if tables already exist).
 - [ ] 1.2 Migration `002_seed_core_modules.sql` — seed rows for `GLOBAL_CONTROL`, `INTAKE_NORMALIZER`, `INTENT_CLASSIFIER`, `WORKFLOW_ROUTER`, `TASK_PLANNER` (prompt text sourced verbatim from `04_PromptLibrary_SystemPromptsStructure.md`, per `PROMPT_MODULES.md` §5).
@@ -35,7 +38,9 @@ The repo already has partial implementation from earlier work. Do not assume a b
 - [ ] 1.10 `validation.ts` — `validateRoutingDecision`, `validatePlannerOutput` (`PROMPT_ENGINE.md` §7).
 - [ ] 1.11 Unit tests for all of the above (`TESTING_STRATEGY.md` §1–2).
 
-**Acceptance gate:** `INTAKE_NORMALIZER → INTENT_CLASSIFIER → WORKFLOW_ROUTER → TASK_PLANNER` runs end-to-end against a live local Supabase stack, each step's output validates against its schema, each has a passing unit test (`BUILD_SPEC.md` §6).
+**Acceptance gate (superseded — see `PHASE1_RESCOPING.md` §7 for the current one):** `INTAKE_NORMALIZER → INTENT_CLASSIFIER → WORKFLOW_ROUTER → TASK_PLANNER` runs end-to-end against a live local Supabase stack, each step's output validates against its schema, each has a passing unit test (`BUILD_SPEC.md` §6).
+
+</details>
 
 ---
 
