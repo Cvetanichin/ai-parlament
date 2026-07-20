@@ -2,7 +2,7 @@
 document: Phase 1 Re-Scoping Plan
 supersedes: IMPLEMENTATION_PLAN.md's original Phase 1 task list (1.1-1.11), per ADR-0011
 depends_on: docs/21-ADRs/0011-prompt-orchestration-platform-as-parliament-core-extension.md, docs/21-ADRs/0012-structured-output-anthropic-tool-use.md (repo root docs/)
-status: DRAFT — planning only, nothing in this document has been executed. No migration applied, no code written, no agent registered.
+status: RESOLVED at the planning level (2026-07-20) — all open items in §8 decided. Nothing in this document has been executed yet: no migration applied, no code written, no agent registered. Execution is §7's task list.
 prepared: 2026-07-20
 ---
 
@@ -171,11 +171,41 @@ reuse the exact baseline state machine every Workflow Definition already
 gets (§2.2) — POP's specialist/validator failure path is not a new state
 machine, it's the same Vote of No Confidence pattern every other ministry
 already goes through, with `validators` (new table, §1) supplying the
-severity threshold that decides pass/fail instead of `vetoEngine.ts`'s
-deterministic/lexical/semantic tiers. Whether POP's validators call
-`vetoEngine.ts`'s `runVeto()` directly (reusing it) or a new,
-structurally-similar function is a Phase 1 execution decision, not resolved
-here — flagged, not blocking.
+severity threshold that decides pass/fail. **Decided (2026-07-20): reuse
+`vetoEngine.ts` directly, not a parallel function — see §3.1.**
+
+### 3.1 Generalizing `vetoEngine.ts` for reuse
+
+`runVeto()` as it exists today is hardcoded to the Writing Ministry's shape:
+`agentSlug: "compliance_judge"`, a Governance-Loop-specific
+`buildSemanticPrompt` (references "Annex A draft" literally), and
+`VetoConstraints` (`characterLimit`, `requiredKeywords`) that don't fit a
+validator like `VALIDATOR_INDICATORS` checking SMART-criteria coverage
+rather than a character limit. "Reuse the existing veto engine" therefore
+means **generalize it, not call it as-is**:
+
+- Extract the three-tier shape into a parameterized `runValidation()`:
+  deterministic and lexical become caller-supplied check functions instead
+  of the two fixed functions bound to `VetoConstraints`; semantic becomes a
+  caller-supplied `semanticJudgeAgentSlug` + `buildSemanticPrompt`, instead
+  of being hardcoded to `compliance_judge`.
+- `runVeto()` stays exported with its exact current signature, reimplemented
+  as a thin wrapper calling `runValidation()` with the existing
+  `deterministicCheck`/`lexicalCheck`/`compliance_judge`/
+  `buildSemanticPrompt` bound in — **zero behaviour change for
+  `runGovernanceLoop`'s existing call site.**
+- `VALIDATOR_INDICATORS` (and `VALIDATOR_GENERIC`, `VALIDATOR_MVP_REALISM`
+  when they're seeded) call `runValidation()` directly with their own
+  deterministic check (e.g. "every indicator row has a non-empty MoV
+  field"), their own semantic judge agent slug (a new, deliberately
+  separate persona per agent — same "different role from the drafting
+  agent" principle `compliance_judge` already establishes), and severity
+  drawn from the new `validators.severity_threshold` column rather than a
+  fixed pass/fail.
+- This is real refactoring work on a file the live Writing Ministry depends
+  on today — it needs a regression test proving `runGovernanceLoop`'s
+  behaviour is unchanged before any new validator is wired to
+  `runValidation()`, not just a new-code test.
 
 ## 4. LLM Gateway extension (ADR-0012)
 
@@ -227,6 +257,92 @@ disambiguated by which `agentSlug` the caller passes.
 `states`/`transitions` plus the Prime Minister's existing task-allocation
 role — not callable agents.
 
+**Correction, 2026-07-20 (see §5.2): this was too categorical for two of the
+six.** `INTAKE_NORMALIZER` and `INTENT_CLASSIFIER` genuinely call a model —
+ADR-0011's own principle 8 ("auditable by construction") requires every
+model call go through the Agent Runtime, so both **are** registered agents
+after all. The other four (`GLOBAL_CONTROL`, `WORKFLOW_ROUTER`,
+`TASK_PLANNER` for v1, `RUN_LOGGER`) correctly have no model call of their
+own — ADR-0011's reasoning holds for them unchanged.
+
+### 5.1 `GLOBAL_CONTROL`'s final form — decided (2026-07-20)
+
+Not a `prompt_modules` row, not an `ai_agents` row, not a hardcoded string in
+application code (that would break `PROJECT.md` Golden Rule 1 — this
+system's content-governance rules survive ADR-0011 unchanged; only the
+orchestration mechanism changed). **`GLOBAL_CONTROL` becomes one
+`context_assets` row** — `context_type = 'domain_rules'`, `domain =
+'{general}'`, `content` = its prose text from
+`04_PromptLibrary_SystemPromptsStructure.md` §2 (lines 1442–1484). The new
+`prompt-orchestration-run` function fetches this one row once per
+orchestration run (not once per specialist call) and prepends it to every
+specialist/validator/formatter prompt it builds — matching how the original
+design already described it ("prose, always injected as system-level
+context — not a discrete billed step," `EDGE_FUNCTIONS.md` step 2). Editable
+by a Product Owner through the `context_assets` table like any other
+context asset, with zero code deploy, per `PROJECT.md` Golden Rule 7.
+
+### 5.2 Classification and routing — decided (2026-07-20)
+
+**Recommendation: split the two concerns, as POP's own original design
+already did, and keep each on the side it's actually good at.** These are
+not one question with one answer — `INTENT_CLASSIFIER` and
+`WORKFLOW_ROUTER` were two different jobs wearing similar names.
+
+**`INTENT_CLASSIFIER` (and `INTAKE_NORMALIZER` before it): stays an LLM
+call, registered as a real agent.** Classifying arbitrary free text
+("can you help me draft indicators for the new EU project?") into
+`primary_task_type`/`domain`/`complexity`/`risk_flags` needs genuine
+language understanding — deterministic keyword-matching is brittle the
+moment phrasing varies, which for a consultant's actual input it always
+will. This is exactly the shape `generateStructured` (ADR-0012, §4) exists
+for: a named schema, forced conformance, bounded enum outputs. Concretely:
+
+- `intake_normalizer` and `intent_classifier` become two more `ai_agents`
+  rows (correcting §5's original "not registered as agents" list — see the
+  note there), sharing `prompt-orchestration-run` like the other five.
+- Their prompt text is `04_PromptLibrary_SystemPromptsStructure.md` §3 and
+  §4 respectively (`intake_normalizer_v1` / `intent_classifier_v1` schemas
+  already fully specified in `PROMPT_ENGINE.md` §3) — seed as-is, they
+  don't need the same real-world enrichment pass the specialists got,
+  since classification prompts aren't domain-content prompts.
+- Each call is audited through the normal `agent_runs` path — same
+  auditability guarantee every other agent invocation already gets.
+
+**Routing (which Workflow Definition to instantiate): NOT an LLM call —
+a deterministic Postgres function against `routing_rules`.** Once
+`intent_classifier` has produced structured signals, mapping those signals
+to a `workflow_definition_id` is a lookup with no ambiguity requiring
+judgment: match `routing_rules.match_logic_json` against the classification
+output, ordered by `priority`, return the first match. This is exactly
+where `docs/18-Testing/`'s "deterministic-rule-coverage-first" philosophy
+applies with full force — 100% branch coverage on a routing table is
+achievable and meaningful in a way it never can be on free-text
+classification.
+
+**Consequence: `WORKFLOW_ROUTER` as a separate LLM call is dropped
+entirely, not just left unregistered.** POP's original design already
+made the RPC result authoritative and the LLM router's output
+rationale-only, logging-only (`EDGE_FUNCTIONS.md` step 6: "RPC result is
+authoritative"). A second model call whose output is admittedly never
+acted on is pure latency and token cost for no decision-making value — the
+deterministic routing function should write its own match reasoning into
+`workflow_instance_history.reason` (which fields of `routing_rules` matched
+and why), giving equivalent audit trail without the redundant call. This is
+a simplification enabled by removing `WORKFLOW_ROUTER`, not a separate cut
+that loses something.
+
+**`TASK_PLANNER`: deferred, not eliminated.** All three v1 workflows
+(`ME_FRAMEWORK`, `PRODUCT_MVP_DESIGN`, `PROMPT_ENGINEERING`) use
+`sequential_chain` (`BUILD_SPEC.md` §1, confirmed in `ARCHITECTURE.md` §3:
+"v1 workflows... all use `sequential_chain`") — a fixed step sequence
+already fully specified by the Workflow Definition's `transitions` (§3).
+There is nothing for a planner to dynamically decide yet. `TASK_PLANNER`
+becomes relevant only when a `planner_plus_workers` workflow is actually
+built (v1.1+, e.g. a future multi-part deliverable) — correctly deferred,
+not a registered agent for Phase 1, and this isn't a gap: there's no
+dynamic planning need to fill.
+
 ## 6. Edge Function: `prompt-orchestration-run`
 
 New function, one per this system (not one per module — §5). Structurally
@@ -252,12 +368,16 @@ Replaces `IMPLEMENTATION_PLAN.md`'s original 1.1–1.11.
 - [ ] 1.1 Migration `17_prompt_orchestration_schema.sql` — the DDL in §2 above, reviewed and adjusted, then applied via `apply_migration` to `cso-playground` (not a fresh project — ADR-0011).
 - [ ] 1.2 `llmGateway.ts`: add `generateStructured()` (ADR-0012, §4 above). Unit test against a mock binding.
 - [ ] 1.3 `agentRuntime.ts`: `invokeAgent()` branches on `prompt_modules.strict_output_enabled` to call `generateStructured` instead of `generateText`.
-- [ ] 1.4 Register the 5 agents in §5 via `ensureAgent`/`ensureActivePromptVersion` — a seed script or one-time call, not new registration code.
+- [ ] 1.4 Register the 7 agents (§5's 5 + §5.2's `intake_normalizer`/`intent_classifier`) via `ensureAgent`/`ensureActivePromptVersion` — a seed script or one-time call, not new registration code.
+- [ ] 1.4b Seed the `GLOBAL_CONTROL` `context_assets` row (§5.1).
+- [ ] 1.4c `resolve_workflow_for_run`-equivalent Postgres function — deterministic routing per §5.2, matching classification output against `routing_rules.match_logic_json` by priority.
 - [ ] 1.5 New Workflow Definition rows for `ME_FRAMEWORK`, `PRODUCT_MVP_DESIGN`, `PROMPT_ENGINEERING` (v1) — `states`/`transitions`/`gates` per §3's shape.
-- [ ] 1.6 `_shared/ministries/promptOrchestration/*.ts` — `buildPrompt`/`parseResponse` per specialist/validator/formatter, sourced from `SPECIALIST_PROMPTS_SEED.md` and (for the validator/formatter, flagged in §5) a review pass over `04_PromptLibrary_SystemPromptsStructure.md` §18/§21 first.
-- [ ] 1.7 `workflowEngine.ts`: `runPromptOrchestrationTask()` — sequencing function, §6.
-- [ ] 1.8 `supabase/functions/prompt-orchestration-run/index.ts` — the Edge Function, §6.
-- [ ] 1.9 Unit + integration tests (`TESTING_STRATEGY.md` §1–2, adjusted for this schema).
+- [ ] 1.5b Seed `routing_rules` rows mapping each v1 workflow's trigger conditions to its `workflow_definition_id`.
+- [ ] 1.6 `vetoEngine.ts` → `runValidation()` generalization per §3.1, with a regression test proving `runGovernanceLoop` is unchanged, before any new validator is wired to it.
+- [ ] 1.7 `_shared/ministries/promptOrchestration/*.ts` — `buildPrompt`/`parseResponse` per specialist/validator/formatter/classifier, sourced from `SPECIALIST_PROMPTS_SEED.md` (specialists), `04_PromptLibrary_SystemPromptsStructure.md` §3/§4 (`intake_normalizer`/`intent_classifier`, verbatim per `PROMPT_ENGINE.md` §3's schemas) and §18/§21 (validator/formatter — review before seeding, flagged in §5).
+- [ ] 1.8 `workflowEngine.ts`: `runPromptOrchestrationTask()` — sequencing function, §6.
+- [ ] 1.9 `supabase/functions/prompt-orchestration-run/index.ts` — the Edge Function, §6.
+- [ ] 1.10 Unit + integration tests (`TESTING_STRATEGY.md` §1–2, adjusted for this schema) — including the §1.6 regression test and full branch coverage on the §1.4c routing function per `docs/18-Testing/`'s deterministic-rule-coverage-first philosophy.
 
 **Acceptance gate (unchanged in spirit from the original):** the M&E
 Framework workflow runs end-to-end against `cso-playground` — specialist
@@ -265,17 +385,23 @@ output validates against its schema, a `prompt_orchestration_runs` row and
 matching `workflow_instance_history` rows are written, each new piece has a
 passing test.
 
-## 8. Explicitly not decided by this pass
+## 8. Open items — resolved 2026-07-20
 
-- Whether POP's validators reuse `vetoEngine.ts`'s `runVeto()` directly or
-  get their own structurally-similar function (§3).
-- The exact shape of `GLOBAL_CONTROL`'s content if it survives as a
-  system-prompt string prepended to every specialist call, versus being
-  fully absorbed into each Workflow Definition's configuration.
-- Whether `INTENT_CLASSIFIER`/`WORKFLOW_ROUTER`'s classification logic
-  becomes a deterministic SQL function (matching Parliament Core's existing
-  preference for deterministic-where-possible, `docs/18-Testing/`'s
-  coverage-first philosophy) or stays an LLM call feeding `routing_rules`.
+All three items originally flagged here are now decided:
 
-These are real Phase 1 execution questions, left open deliberately rather
-than guessed at in a planning document.
+- **Validators reuse `vetoEngine.ts`** — generalized into `runValidation()`,
+  §3.1.
+- **`GLOBAL_CONTROL`** — one `context_assets` row, fetched once per run,
+  §5.1.
+- **Classification vs. routing** — split, not one answer: classification
+  (`intake_normalizer`, `intent_classifier`) stays an LLM call and both
+  become real registered agents (correcting §5's original blanket
+  "no agents" list); routing becomes a deterministic Postgres function
+  against `routing_rules`, and the separate `WORKFLOW_ROUTER` LLM call is
+  dropped entirely rather than kept as a non-authoritative rationale step.
+  §5.2.
+
+Nothing is left open at the planning level. Task list: §7. Remaining
+unknowns (exact test fixture data, precise `match_logic_json` shape for the
+three v1 routing rules) are normal implementation detail, not architecture
+decisions — they surface during §7's execution, not before it.
