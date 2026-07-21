@@ -79,26 +79,76 @@ export interface RunVetoParams {
   organisationId: string;
 }
 
-export async function runVeto(params: RunVetoParams): Promise<VetoResult> {
-  const { supabase, draft, constraints, brief, projectId, organisationId } = params;
+// Generalized three-tier validation — PHASE1_RESCOPING.md §3.1. Extracted
+// from what was, until now, code hardcoded to the Writing Ministry's shape
+// (a fixed VetoConstraints type, compliance_judge as the only possible
+// semantic judge, and a PASS/FAIL-prefixed verdict format). Prompt
+// Orchestration Platform's validators (validator_indicators first, then
+// validator_generic/validator_mvp_realism) reuse this directly rather than
+// duplicating the three-tier pattern in a parallel function — each supplies
+// its own deterministic/lexical checks, its own semantic judge agent (a
+// deliberately separate persona from the drafting specialist, same
+// principle compliance_judge already establishes), and — since not every
+// validator's prompt returns a bare PASS/FAIL string — its own verdict
+// parser. runVeto below is a thin wrapper over this with the exact
+// original arguments bound in, so runGovernanceLoop's call site and
+// behaviour are unchanged.
+export interface RunValidationParams<TConstraints> {
+  supabase: SupabaseClient;
+  draft: string;
+  constraints: TConstraints;
+  deterministicCheck: (draft: string, constraints: TConstraints) => VetoCheckResult;
+  lexicalCheck: (draft: string, constraints: TConstraints) => VetoCheckResult;
+  semanticJudgeAgentSlug: string;
+  buildSemanticPrompt: (input: Record<string, unknown>) => string;
+  semanticInput: Record<string, unknown>;
+  mockSemanticRun: (input: Record<string, unknown>) => string;
+  // Defaults to the original PASS/"FAIL: <reason>" convention — supply a
+  // different parser when the judge's prompt doesn't return that exact
+  // shape (e.g. validator_indicators' "Assessment: strong|usable with
+  // revisions|weak" structure).
+  parseSemanticVerdict?: (raw: string) => VetoCheckResult;
+  projectId: string;
+  organisationId: string;
+}
 
-  const deterministic = deterministicCheck(draft, constraints);
-  const lexical = lexicalCheck(draft, constraints);
+function defaultParseSemanticVerdict(raw: string): VetoCheckResult {
+  const verdict = raw.trim();
+  return verdict.toUpperCase().startsWith("PASS")
+    ? { pass: true, failures: [] }
+    : { pass: false, failures: [`semantic: ${verdict.replace(/^FAIL:?\s*/i, "")}`] };
+}
+
+export async function runValidation<TConstraints>(params: RunValidationParams<TConstraints>): Promise<VetoResult> {
+  const {
+    supabase,
+    draft,
+    constraints,
+    deterministicCheck: runDeterministic,
+    lexicalCheck: runLexical,
+    semanticJudgeAgentSlug,
+    buildSemanticPrompt: buildJudgePrompt,
+    semanticInput,
+    mockSemanticRun: mockJudgeRun,
+    projectId,
+    organisationId,
+  } = params;
+
+  const deterministic = runDeterministic(draft, constraints);
+  const lexical = runLexical(draft, constraints);
 
   const semanticInvocation = await invokeAgent({
     supabase,
-    agentSlug: "compliance_judge",
+    agentSlug: semanticJudgeAgentSlug,
     projectId,
     organisationId,
-    input: { draft, brief },
-    buildPrompt: buildSemanticPrompt,
-    mockRun: mockSemanticRun,
+    input: semanticInput,
+    buildPrompt: buildJudgePrompt,
+    mockRun: mockJudgeRun,
   });
 
-  const verdict = String(semanticInvocation.output).trim();
-  const semantic: VetoCheckResult = verdict.toUpperCase().startsWith("PASS")
-    ? { pass: true, failures: [] }
-    : { pass: false, failures: [`semantic: ${verdict.replace(/^FAIL:?\s*/i, "")}`] };
+  const parseVerdict = params.parseSemanticVerdict ?? defaultParseSemanticVerdict;
+  const semantic = parseVerdict(String(semanticInvocation.output).trim());
 
   const failures = [...deterministic.failures, ...lexical.failures, ...semantic.failures];
 
@@ -108,4 +158,22 @@ export async function runVeto(params: RunVetoParams): Promise<VetoResult> {
     failures,
     semanticAgentRunId: semanticInvocation.agentRunId,
   };
+}
+
+// Thin wrapper — zero behaviour change from before runValidation existed.
+export function runVeto(params: RunVetoParams): Promise<VetoResult> {
+  const { supabase, draft, constraints, brief, projectId, organisationId } = params;
+  return runValidation({
+    supabase,
+    draft,
+    constraints,
+    deterministicCheck,
+    lexicalCheck,
+    semanticJudgeAgentSlug: "compliance_judge",
+    buildSemanticPrompt,
+    semanticInput: { draft, brief },
+    mockSemanticRun,
+    projectId,
+    organisationId,
+  });
 }

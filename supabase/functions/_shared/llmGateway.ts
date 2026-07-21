@@ -30,6 +30,82 @@ export interface GenerateResult {
   usedProvider: "anthropic" | "gemini" | "mock";
 }
 
+// Structured-output variant — ADR-0012 (docs/21-ADRs, repo root). Uses
+// Anthropic's tool-use mechanism (a single forced tool call) to get
+// schema-conformant JSON directly from `tool_use.input`, functionally
+// equivalent to OpenAI's strict Structured Outputs but on the provider
+// this deployment already runs every agent on. Not a replacement for
+// generateText — plain-text agents keep calling that unchanged; this is
+// only for prompt_modules rows with strict_output_enabled = true.
+export interface GenerateStructuredOptions {
+  binding: ModelBinding;
+  schemaName: string;
+  schema: Record<string, unknown>;
+  mock: () => Record<string, unknown>;
+}
+
+export interface GenerateStructuredResult {
+  output: Record<string, unknown>;
+  tokenCost: number | null;
+  latencyMs: number;
+  usedProvider: "anthropic" | "gemini" | "mock";
+}
+
+export async function generateStructured(
+  prompt: string,
+  options: GenerateStructuredOptions,
+): Promise<GenerateStructuredResult> {
+  const started = performance.now();
+
+  if (options.binding.provider === "anthropic") {
+    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (apiKey) {
+      try {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: options.binding.model,
+            max_tokens: 1024,
+            tools: [{
+              name: options.schemaName,
+              description: `Return output conforming exactly to the ${options.schemaName} schema. Call this tool with the result — do not respond in free text.`,
+              input_schema: options.schema,
+            }],
+            tool_choice: { type: "tool", name: options.schemaName },
+            messages: [{ role: "user", content: prompt }],
+          }),
+        });
+        if (!res.ok) throw new Error(`Anthropic API ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+        const toolUse = (data.content ?? []).find((block: { type: string }) => block.type === "tool_use");
+        if (!toolUse) throw new Error("Anthropic response contained no tool_use block despite forced tool_choice");
+        const tokenCost = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
+        return {
+          output: toolUse.input as Record<string, unknown>,
+          tokenCost,
+          latencyMs: performance.now() - started,
+          usedProvider: "anthropic",
+        };
+      } catch (err) {
+        console.error("[llm-gateway] Anthropic structured call failed, falling back to mock:", (err as Error).message);
+      }
+    }
+  }
+
+  // Gemini has no forced-tool-call path wired here yet — no existing agent
+  // uses Gemini with strict_output_enabled, so this isn't a gap being
+  // carried silently; it falls through to the mock below like any
+  // unconfigured or failed provider.
+
+  const output = options.mock();
+  return { output, tokenCost: null, latencyMs: performance.now() - started, usedProvider: "mock" };
+}
+
 export async function generateText(prompt: string, options: GenerateOptions): Promise<GenerateResult> {
   const started = performance.now();
 

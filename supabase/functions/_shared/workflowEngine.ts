@@ -10,7 +10,7 @@ import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { invokeAgent } from "./agentRuntime.ts";
 import { buildPrompt as buildResearchPrompt, mockRun as mockResearchRun, parseResponse as parseResearchResponse, ResearchInput } from "./ministries/research.ts";
 import { buildPrompt as buildWritingPrompt, mockDraft, WritingInput } from "./ministries/writing.ts";
-import { runVeto, VetoConstraints } from "./vetoEngine.ts";
+import { runValidation, runVeto, VetoCheckResult, VetoConstraints, VetoResult } from "./vetoEngine.ts";
 
 export type WorkflowState =
   | "pending"
@@ -236,6 +236,162 @@ export async function runGovernanceLoop(params: RunGovernanceLoopParams) {
     attempts: attempt,
     confidence,
     agentRunId: draftResult?.agentRunId ?? null,
+  };
+}
+
+// Prompt Orchestration task sequencing — ADR-0011/0012,
+// PHASE1_RESCOPING.md §5.2, §6. Specialist -> (validator, Vote of No
+// Confidence loop if present) -> formatter, reusing the exact same
+// baseline state machine and retry pattern runGovernanceLoop already
+// implements, generalized over runValidation() (vetoEngine.ts §3.1)
+// instead of the Writing Ministry's fixed veto shape. Not every v1
+// workflow has a validator yet (PRODUCT_MVP_DESIGN, PROMPT_ENGINEERING —
+// see migration 18's note) — when validator is omitted, the draft goes
+// straight to the formatter with no retry loop.
+export interface RunPromptOrchestrationTaskParams<TConstraints = unknown> {
+  supabase: SupabaseClient;
+  instanceId: string;
+  organisationId: string;
+  projectId: string;
+  globalControl: string;
+  normalizedInput: Record<string, unknown>;
+  selectedContext?: string;
+
+  specialistAgentSlug: string;
+  buildSpecialistPrompt: (input: Record<string, unknown>) => string;
+  mockSpecialistRun: (input: Record<string, unknown>) => string;
+
+  validator?: {
+    agentSlug: string;
+    constraints: TConstraints;
+    deterministicCheck: (draft: string, constraints: TConstraints) => VetoCheckResult;
+    lexicalCheck: (draft: string, constraints: TConstraints) => VetoCheckResult;
+    buildSemanticPrompt: (input: Record<string, unknown>) => string;
+    mockSemanticRun: (input: Record<string, unknown>) => string;
+    parseSemanticVerdict?: (raw: string) => VetoCheckResult;
+  };
+
+  formatterAgentSlug: string;
+  buildFormatterPrompt: (input: Record<string, unknown>) => string;
+  mockFormatterRun: (input: Record<string, unknown>) => string;
+
+  voteOfNoConfidenceThreshold: number;
+}
+
+export interface RunPromptOrchestrationTaskResult {
+  draft: string;
+  finalOutput: string | null;
+  validationResult: VetoResult | null;
+  attempts: number;
+  escalated: boolean;
+  qualityAssessment: "strong" | "acceptable_with_revisions" | "weak";
+  specialistAgentRunId: string | null;
+  formatterAgentRunId: string | null;
+}
+
+export async function runPromptOrchestrationTask(
+  params: RunPromptOrchestrationTaskParams,
+): Promise<RunPromptOrchestrationTaskResult> {
+  const { supabase, instanceId, organisationId, projectId, globalControl, normalizedInput, selectedContext, validator } = params;
+
+  await transition(supabase, instanceId, "running", "Specialist dispatched");
+
+  let errorLog: string[] | null = null;
+  let attempt = 0;
+  let draft = "";
+  let specialistAgentRunId: string | null = null;
+  let validationResult: VetoResult | null = null;
+
+  const threshold = validator ? params.voteOfNoConfidenceThreshold : 1;
+
+  while (attempt < threshold) {
+    attempt += 1;
+
+    if (attempt > 1) {
+      // Vote of No Confidence: forced context reset (no prior draft
+      // carried forward, only the structured error log) + error log
+      // injection — identical pattern to runGovernanceLoop's §2.3.
+      await transition(
+        supabase,
+        instanceId,
+        "rewriting",
+        `Vote of No Confidence attempt ${attempt}: forced context reset, error log injected`,
+      );
+    }
+
+    const specialistResult = await invokeAgent({
+      supabase,
+      agentSlug: params.specialistAgentSlug,
+      projectId,
+      organisationId,
+      input: { globalControl, normalizedRequest: normalizedInput, selectedContext, errorLog },
+      buildPrompt: params.buildSpecialistPrompt,
+      mockRun: params.mockSpecialistRun,
+    });
+    draft = String(specialistResult.output);
+    specialistAgentRunId = specialistResult.agentRunId;
+
+    if (!validator) break;
+
+    validationResult = await runValidation({
+      supabase,
+      draft,
+      constraints: validator.constraints,
+      deterministicCheck: validator.deterministicCheck,
+      lexicalCheck: validator.lexicalCheck,
+      semanticJudgeAgentSlug: validator.agentSlug,
+      buildSemanticPrompt: validator.buildSemanticPrompt,
+      semanticInput: { draft },
+      mockSemanticRun: validator.mockSemanticRun,
+      parseSemanticVerdict: validator.parseSemanticVerdict,
+      projectId,
+      organisationId,
+    });
+
+    if (validationResult.pass) break;
+
+    errorLog = validationResult.failures;
+    await transition(supabase, instanceId, "veto_failed", `Attempt ${attempt} failed validation: ${errorLog.join("; ")}`);
+  }
+
+  const escalated = Boolean(validator) && !validationResult?.pass;
+  if (escalated) {
+    await transition(supabase, instanceId, "escalated", "Vote of No Confidence exhausted — escalating to human");
+    await transition(supabase, instanceId, "awaiting_human", "Escalated — awaiting human review, no formatted output produced");
+  }
+
+  let finalOutput: string | null = null;
+  let formatterAgentRunId: string | null = null;
+  if (!escalated) {
+    const formatterResult = await invokeAgent({
+      supabase,
+      agentSlug: params.formatterAgentSlug,
+      projectId,
+      organisationId,
+      input: { globalControl, approvedContent: draft },
+      buildPrompt: params.buildFormatterPrompt,
+      mockRun: params.mockFormatterRun,
+    });
+    finalOutput = String(formatterResult.output);
+    formatterAgentRunId = formatterResult.agentRunId;
+    await transition(supabase, instanceId, "completed", "Formatter complete");
+  }
+
+  const qualityAssessment: "strong" | "acceptable_with_revisions" | "weak" = escalated
+    ? "weak"
+    : attempt === 1
+      ? "strong"
+      : "acceptable_with_revisions";
+
+  return {
+    draft,
+    finalOutput,
+    validationResult,
+    attempts: attempt,
+    escalated,
+    qualityAssessment,
+    specialistAgentRunId,
+    formatterAgentRunId,
   };
 }
 
