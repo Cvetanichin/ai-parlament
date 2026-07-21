@@ -46,6 +46,64 @@ governance layer for how this platform gets built from here on.
    `not yet specified` — the priority-ordered list in EAS §13 is fully
    drafted; what comes next is a fresh prioritisation call, not a queued item.
 
+## Local setup
+
+Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (runs the local
+Postgres/Auth/Storage stack), the [Supabase CLI](https://supabase.com/docs/guides/cli) (`brew
+install supabase/tap/supabase` or see the linked docs), and Node.js 18+ (for the frontend).
+
+All `supabase` commands below run from the repo root; the `npm` commands run from `frontend/`.
+
+1. **Start the local Supabase stack.** Applies every migration in `supabase/migrations/` on
+   first run, then `supabase/seed.sql` (dummy demo data — see that file's own header for exactly
+   what it does and does not seed).
+
+   ```bash
+   supabase start
+   ```
+
+   This prints your local `API URL`, `anon key`, and `service_role key`, and starts Studio (a
+   local Postgres admin UI) at the URL it prints. Re-run `supabase db reset` any time you want to
+   wipe and re-apply migrations + seed from scratch.
+
+2. **Serve the Edge Functions.** Optional but recommended: copy `supabase/.env.example` to
+   `supabase/.env.local` and fill in `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` if
+   you want real LLM calls — with none set, `llmGateway.ts` transparently falls back to a mock
+   provider, so the whole governance loop is demoable with zero external dependencies or cost.
+
+   ```bash
+   supabase functions serve --env-file supabase/.env.local
+   ```
+
+   `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` are injected automatically
+   for the local stack — don't set those yourself.
+
+3. **Start the frontend.** In a separate terminal:
+
+   ```bash
+   cd frontend
+   npm install
+   cp .env.example .env.local
+   ```
+
+   Fill in `.env.local` with the `API URL` and `anon key` `supabase start` printed in step 1
+   (`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`), then:
+
+   ```bash
+   npm run dev
+   ```
+
+   This serves the app (Vite prints the local URL, typically `http://localhost:5173`).
+
+4. **Log in.** Sign up as a new user (lands you in the demo organisation as a `member`), or use
+   one of the pre-seeded accounts in `supabase/TEST_ACCOUNTS.txt` (local dev only — none of these
+   exist on staging or production).
+
+To stop the local stack: `supabase stop`.
+
+See the root `CLAUDE.md` for the full command reference (linting, tests, single-function serving)
+and an architecture overview of what you're running.
+
 ## The rule this whole set exists to enforce
 
 > Claude Code (or any coding agent) implements only what is specified here.
