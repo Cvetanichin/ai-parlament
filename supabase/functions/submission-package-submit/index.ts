@@ -14,6 +14,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller, requireGateRole } from "../_shared/auth.ts";
 import { submitPackage } from "../_shared/submissionGateway.ts";
+import { publishEvent } from "../_shared/eventBus.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
@@ -39,6 +40,16 @@ Deno.serve(async (req: Request) => {
       organisationId: caller.organisationId,
       actorId: caller.userId,
       submissionPackageId,
+    });
+
+    await publishEvent({
+      supabase: admin,
+      organisationId: caller.organisationId,
+      eventType: "submission_submitted",
+      sourceService: "submission-package-submit",
+      targetType: "submission_package",
+      targetId: submissionPackageId,
+      payload: result as Record<string, unknown>,
     });
 
     return new Response(JSON.stringify(result), { status: 200, headers: { "content-type": "application/json" } });

@@ -13,6 +13,7 @@
 // must supply a projectId.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { generateText, ModelBinding } from "./llmGateway.ts";
+import { assembleContext } from "./contextEngine.ts";
 
 export interface InvokeAgentParams {
   supabase: SupabaseClient;
@@ -29,6 +30,15 @@ export interface InvokeAgentParams {
   // against the mock provider — not merely whatever happens to be
   // registered, and not contingent on an API key being absent/failing.
   forceMock?: boolean;
+  // Context Engine (Platform Services spec §1) — opt-in, additive.
+  // Omitted: behaviour is byte-for-byte identical to before this existed
+  // (contextEngine.ts's own header comment explains why this is opt-in,
+  // not a forced rewrite of every ministry call). Supplied: the assembled
+  // context is prepended to buildPrompt's own output before the LLM
+  // Gateway call (§1.2's "between prompt-build and the LLM Gateway call"),
+  // and agent_runs.input_data records the assembled context alongside the
+  // raw input, not raw input alone.
+  contextEngine?: { targetType: string; targetId: string; tokenBudget?: number };
 }
 
 export interface InvokeAgentResult {
@@ -122,12 +132,28 @@ export async function invokeAgent(params: InvokeAgentParams): Promise<InvokeAgen
       ? { provider: version.model_provider as ModelBinding["provider"], model: version.model_name }
       : { provider: "mock", model: "mock" };
 
-  const prompt = params.buildPrompt(input);
+  let contextResult: Awaited<ReturnType<typeof assembleContext>> | null = null;
+  if (params.contextEngine) {
+    contextResult = await assembleContext({
+      supabase,
+      organisationId,
+      targetType: params.contextEngine.targetType,
+      targetId: params.contextEngine.targetId,
+      tokenBudget: params.contextEngine.tokenBudget,
+    });
+  }
+
+  const basePrompt = params.buildPrompt(input);
+  const prompt = contextResult ? `${contextResult.systemPrompt}\n\n${basePrompt}` : basePrompt;
   const { text: raw, tokenCost, latencyMs, usedProvider, redactions } = await generateText(prompt, {
     binding,
     mock: () => params.mockRun(input),
   });
   const output = params.parseResponse ? params.parseResponse(raw) : raw;
+
+  const inputData = contextResult
+    ? { ...input, contextEngine: { sources: contextResult.sources, tokenEstimate: contextResult.tokenEstimate, truncated: contextResult.truncated } }
+    : input;
 
   const { data: run, error: runErr } = await supabase
     .from("agent_runs")
@@ -137,7 +163,7 @@ export async function invokeAgent(params: InvokeAgentParams): Promise<InvokeAgen
       agent_id: agent.id,
       prompt_module_id: version?.id ?? null,
       status: "completed",
-      input_data: input,
+      input_data: inputData,
       output_data: typeof output === "string" ? { text: output } : output,
       token_cost: tokenCost,
       latency_ms: Math.round(latencyMs),

@@ -1,4 +1,4 @@
-# Parliamentary AI Ecosystem — Specification Set
+# Parliamentary AI Ecosystem — Specification Set (Dejan)
 
 This folder is meant to be dropped into the `parliamentary-ai-gov` repository as
 `docs/`, with `00-EAS-v1.0.md` at the repo root or top of `docs/`. It is the

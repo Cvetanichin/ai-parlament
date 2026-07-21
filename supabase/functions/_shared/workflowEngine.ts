@@ -11,6 +11,7 @@ import { invokeAgent } from "./agentRuntime.ts";
 import { buildPrompt as buildResearchPrompt, mockRun as mockResearchRun, parseResponse as parseResearchResponse, ResearchInput } from "./ministries/research.ts";
 import { buildPrompt as buildWritingPrompt, mockDraft, WritingInput } from "./ministries/writing.ts";
 import { runVeto, VetoConstraints } from "./vetoEngine.ts";
+import { publishEvent } from "./eventBus.ts";
 
 export type WorkflowState =
   | "pending"
@@ -210,6 +211,22 @@ export async function runGovernanceLoop(params: RunGovernanceLoopParams) {
 
     errorLog = vetoResult.failures;
     await transition(supabase, instanceId, "veto_failed", `Attempt ${attempt} failed veto: ${errorLog.join("; ")}`);
+
+    // Event Bus (Platform Services spec §2) — a veto failure is one of
+    // this codebase's own examples of a cross-cutting signal worth
+    // publishing (a human/notification consumer may want to know a
+    // Vote of No Confidence cycle is happening without polling
+    // workflow_instance_history). Published per attempt, matching the
+    // audit_events "veto_result" granularity just written above.
+    await publishEvent({
+      supabase,
+      organisationId,
+      eventType: "veto_failed",
+      sourceService: "workflow-governance-run",
+      targetType: "workflow_instance",
+      targetId: instanceId,
+      payload: { attempt, failures: errorLog },
+    });
   }
 
   // Confidence heuristic (§2.3.2): high if passed on attempt 1, medium if

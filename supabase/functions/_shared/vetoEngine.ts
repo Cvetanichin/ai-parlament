@@ -58,8 +58,11 @@ function buildSemanticPrompt(input: Record<string, unknown>): string {
 
 // Deterministic fallback judge — mirrors the real mockJudge exactly: flags
 // drafts that are suspiciously short or truncated mid-sentence by the
-// character-limit trim in the mock writer.
-function mockSemanticRun(input: Record<string, unknown>): string {
+// character-limit trim in the mock writer. Exported (only) so
+// vetoEngine_test.ts can exercise it directly — the Testing spec's two
+// golden-file cases (§1.2) are specifically about this function's fallback
+// logic, not runVeto's DB-touching wrapper around it.
+export function mockSemanticRun(input: Record<string, unknown>): string {
   const { draft } = input as { draft: string };
   if (draft.length < 40) {
     return "FAIL: draft is too thin to credibly address the brief";

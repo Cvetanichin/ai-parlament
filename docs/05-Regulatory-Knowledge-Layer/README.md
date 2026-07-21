@@ -23,3 +23,20 @@ legacy PRAG versions are handled by a new `projects.prag_version` column
 (`docs/11-Database-Schema/`) plus a `legacy_prag_pending` finding status —
 a fallback mechanism that closes the question architecturally without
 requiring an answer about the organisation's actual grant portfolio.
+
+## Implementation status (20 Jul 2026)
+
+The ingestion pipeline (§4: parser, chunker, deterministic rule-obligation
+classifier) is built — `supabase/functions/_shared/regulatoryIngestion.ts`,
+invoked via `regulatory-document-ingest-run`. **`regulatory_clauses` and
+`compliance_findings` remain empty on purpose.** The real source text this
+spec is grounded in (`PRAG_2025_full_version_en.md`, the Standard Grant
+Contract annexes, `Internal Knowledge Assistant.md`) was read in a separate
+authoring session and was never committed to this repository — searched
+for and confirmed absent. Populating these tables means calling
+`regulatory-document-ingest-run` with that real text once it's available
+in this repo or supplied directly; nothing in this codebase fabricates
+clause text to fill the gap. Until then, `eligibilityEngine.ts`,
+`budgetEngine.ts`, and every other Compliance Studio validator correctly
+keep returning `context_dependent`/`pass with a caveat` rather than a
+false positive.

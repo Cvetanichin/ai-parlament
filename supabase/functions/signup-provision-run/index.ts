@@ -53,7 +53,20 @@ Deno.serve(async (req: Request) => {
       organisationId = existingMembership.organisation_id;
       role = existingMembership.role;
     } else {
-      const { data: anyOrg } = await admin.from("organisations").select("id").limit(1).maybeSingle();
+      // Excludes the sentinel "Platform" organisation (ADR-0010 §7 /
+      // migration 13) — that row exists only for attributing audit_events
+      // on global, organisation-less tables (embedding pipeline runs,
+      // regulatory document ingestion, GDPR erasure); it predates this
+      // function's "any org" query by a later ADR and was never meant to
+      // hold real members. Without this filter, once a second
+      // organisation exists (the sentinel always counts as one), an
+      // unordered `LIMIT 1` can silently join a brand-new signup to the
+      // sentinel instead of a real tenant — confirmed live: a fresh
+      // signup landed in "Platform" with zero real data visible, which is
+      // what surfaced this bug in the first place. regulatory-document-
+      // ingest-run/gdpr-erasure-run already look up that same sentinel by
+      // this exact name — reusing the identifier, not inventing a new one.
+      const { data: anyOrg } = await admin.from("organisations").select("id").neq("name", "Platform").limit(1).maybeSingle();
 
       if (anyOrg) {
         organisationId = anyOrg.id;

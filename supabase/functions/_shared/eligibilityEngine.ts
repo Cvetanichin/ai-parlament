@@ -45,7 +45,11 @@ export interface ComplianceFinding {
 // spec §0's "extend the real table" rule), since no findings-to-category
 // mapping column exists yet and none should be invented speculatively ahead
 // of the real ingestion pipeline landing.
-function rollupCategory(findings: ComplianceFinding[]): { status: CategoryStatus; riskFlags: string[] } {
+// Exported (only) so eligibilityEngine_test.ts can exercise the rollup
+// logic directly — Testing spec §1.1's "deterministic Compliance Engine
+// validators, 100% branch coverage" target, without needing a live
+// Supabase client just to reach pure branch logic.
+export function rollupCategory(findings: ComplianceFinding[]): { status: CategoryStatus; riskFlags: string[] } {
   if (findings.length === 0) {
     return { status: "context_dependent", riskFlags: [] };
   }

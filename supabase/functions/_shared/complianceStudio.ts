@@ -108,6 +108,118 @@ export async function getComplianceStatus(params: GetComplianceStatusParams): Pr
   return { proposalId, byArtefactType, overallStatus, allNonPassOverridden };
 }
 
+export interface OrganisationComplianceItem {
+  id: string;
+  label: string;
+  status: ComplianceStatus;
+}
+
+export interface OrganisationComplianceOverview {
+  proposals: OrganisationComplianceItem[];
+  projects: OrganisationComplianceItem[];
+  countsByStatus: Record<ComplianceStatus, number>;
+}
+
+// Executive Dashboard (Frontend spec §5): "compliance posture — aggregated
+// compliance_findings status across active Proposals/Projects, same
+// aggregation Grant Studio §8.1's GET /compliance/status already computes
+// per-proposal, rolled up here across all of them." Proposal status reuses
+// getComplianceStatus's own overallStatus (multi-artefact-type rollup) per
+// proposal. Projects have no artefact_type of their own in
+// compliance_findings — post-award compliance is tracked per Report
+// (artefact_type: 'report', reportingStudio.ts's validateReport) — so a
+// project's status here is the worst status across its own reports' own
+// findings, using this module's own `rollup()` directly rather than
+// calling validateReport in a loop (which writes an audit_events row per
+// call — fine for an explicit single validation, wrong for a read-only
+// dashboard view loaded on every visit, per this section's own "no write
+// actions originate from this section" rule).
+export interface GetOrganisationComplianceOverviewParams {
+  supabase: SupabaseClient;
+  organisationId: string;
+}
+
+export async function getOrganisationComplianceOverview(
+  params: GetOrganisationComplianceOverviewParams,
+): Promise<OrganisationComplianceOverview> {
+  const { supabase, organisationId } = params;
+
+  const [{ data: proposals }, { data: opportunities }, { data: projects }, { data: reports }] = await Promise.all([
+    supabase.from("proposals").select("id, opportunity_id").eq("organisation_id", organisationId),
+    supabase.from("opportunities").select("id, title").eq("organisation_id", organisationId),
+    supabase.from("projects").select("id, name").eq("organisation_id", organisationId),
+    supabase.from("reports").select("id, project_id").eq("organisation_id", organisationId),
+  ]);
+
+  const opportunityTitleById = new Map((opportunities ?? []).map((o) => [o.id, o.title as string]));
+
+  const proposalIds = (proposals ?? []).map((p) => p.id);
+  const { data: proposalFindings, error: proposalFindingsErr } = proposalIds.length
+    ? await supabase
+        .from("compliance_findings")
+        .select("id, artefact_id, rule, source, severity, status, override_justification")
+        .eq("organisation_id", organisationId)
+        .eq("artefact_type", "proposal")
+        .in("artefact_id", proposalIds)
+    : { data: [] as { id: string; artefact_id: string; rule: string; source: string; severity: string; status: string; override_justification: string | null }[], error: null };
+  if (proposalFindingsErr) throw proposalFindingsErr;
+
+  const proposalFindingsByProposal = new Map<string, ComplianceFinding[]>();
+  for (const finding of proposalFindings ?? []) {
+    const list = proposalFindingsByProposal.get(finding.artefact_id) ?? [];
+    list.push(finding);
+    proposalFindingsByProposal.set(finding.artefact_id, list);
+  }
+
+  const proposalItems: OrganisationComplianceItem[] = (proposals ?? []).map((p) => ({
+    id: p.id,
+    label: opportunityTitleById.get(p.opportunity_id) ?? "Untitled Opportunity",
+    status: rollup(proposalFindingsByProposal.get(p.id) ?? []).status,
+  }));
+
+  const reportIdsByProject = new Map<string, string[]>();
+  for (const report of reports ?? []) {
+    if (!report.project_id) continue;
+    const list = reportIdsByProject.get(report.project_id) ?? [];
+    list.push(report.id);
+    reportIdsByProject.set(report.project_id, list);
+  }
+
+  const allReportIds = (reports ?? []).map((r) => r.id);
+  const { data: reportFindings, error: reportFindingsErr } = allReportIds.length
+    ? await supabase
+        .from("compliance_findings")
+        .select("id, artefact_id, rule, source, severity, status, override_justification")
+        .eq("organisation_id", organisationId)
+        .eq("artefact_type", "report")
+        .in("artefact_id", allReportIds)
+    : { data: [] as { id: string; artefact_id: string; rule: string; source: string; severity: string; status: string; override_justification: string | null }[], error: null };
+  if (reportFindingsErr) throw reportFindingsErr;
+
+  const reportFindingsByReport = new Map<string, ComplianceFinding[]>();
+  for (const finding of reportFindings ?? []) {
+    const list = reportFindingsByReport.get(finding.artefact_id) ?? [];
+    list.push(finding);
+    reportFindingsByReport.set(finding.artefact_id, list);
+  }
+
+  const severityOrder: ComplianceStatus[] = ["fail", "warning", "context_dependent", "pass"];
+  const projectItems: OrganisationComplianceItem[] = (projects ?? []).map((project) => {
+    const reportIds = reportIdsByProject.get(project.id) ?? [];
+    if (reportIds.length === 0) {
+      return { id: project.id, label: project.name, status: "context_dependent" as ComplianceStatus };
+    }
+    const reportStatuses = reportIds.map((rid) => rollup(reportFindingsByReport.get(rid) ?? []).status);
+    const worst = severityOrder.find((s) => reportStatuses.includes(s)) ?? "pass";
+    return { id: project.id, label: project.name, status: worst };
+  });
+
+  const countsByStatus: Record<ComplianceStatus, number> = { pass: 0, warning: 0, fail: 0, context_dependent: 0 };
+  for (const item of [...proposalItems, ...projectItems]) countsByStatus[item.status]++;
+
+  return { proposals: proposalItems, projects: projectItems, countsByStatus };
+}
+
 export interface OverrideFindingParams {
   supabase: SupabaseClient;
   organisationId: string;

@@ -20,6 +20,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller, requireGateRole } from "../_shared/auth.ts";
 import { decideGate, GateType } from "../_shared/workflowEngine.ts";
+import { publishEvent } from "../_shared/eventBus.ts";
 
 // ADR-0009 §4 Phase C.2: read at invocation time. Defaults to "shadow" --
 // the safe default -- when unset, so no secret has to be configured for
@@ -56,6 +57,22 @@ Deno.serve(async (req: Request) => {
       note,
       overrideJustification,
       actorId: caller.userId,
+    });
+
+    // Event Bus (Platform Services spec §2) — a gate decision is exactly
+    // the kind of cross-cutting event other services (Notification Engine)
+    // need to react to without workflow-gate-decide knowing who's
+    // listening. Published after decideGate succeeds, never before —
+    // an event for a decision that failed validation would be false
+    // signal to anything subscribed to it.
+    await publishEvent({
+      supabase: admin,
+      organisationId: caller.organisationId,
+      eventType: "gate_decision",
+      sourceService: "workflow-gate-decide",
+      targetType: "workflow_instance",
+      targetId: workflowInstanceId,
+      payload: { gateType, decision, wasOverride: result.wasOverride, state: result.state },
     });
 
     return new Response(JSON.stringify({ ...result, governanceMode: GOVERNANCE_MODE }), { status: 200, headers: { "content-type": "application/json" } });

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-Two things live here, and they are not the same thing:
+Three things live here, and they are not the same thing:
 
 1. **`docs/` + `00-EAS-v1.0.md`** — the full governance/architecture spec set for a platform
    currently branded (from top to bottom) **Cvetanichin → CSO Playground OS → Quorum Engine
@@ -12,9 +12,18 @@ Two things live here, and they are not the same thing:
    (knowledge platform) / House of Parliament (dev environment)**. Read order and current
    approval status are tracked in the root `README.md`, not here — check it before assuming a
    spec is authoritative.
-2. **`supabase/`** — the actual implementation: SQL migrations plus Deno Edge Functions. This is
-   the only runnable code in the repo. There is no frontend and no `package.json` anywhere — do
-   not assume a Node/npm toolchain.
+2. **`supabase/`** — the backend implementation: SQL migrations plus Deno Edge Functions.
+3. **`frontend/`** — a Vite/React/TypeScript shell (real `package.json`, real Node/npm toolchain —
+   `npm run dev`/`npm run build` from inside `frontend/`). One authenticated shell app, not four
+   separate deployments (`docs/13-Frontend/` §1): Grant Studio, Project Operations, Knowledge Hub,
+   and Executive Dashboard (`docs/13-` §5 — pipeline status, deadlines, cost via `cost_rollups`,
+   aggregated `compliance_findings` via `getOrganisationComplianceOverview`,
+   `complianceStudio.ts`) all have real routes. House of Parliament is deliberately excluded from
+   this shell — it stays the separate
+   `frontend/index.html` MVP playground (`docs/13-` §0/§8), a different application with different
+   users. See `frontend/src/app/lib/edgeFunctions.ts`'s header comment for the data-fetching rule
+   (direct Supabase reads when RLS alone gates it, Edge Function calls when a workflow/gate/rule
+   beyond RLS is involved) and `supabase/TEST_ACCOUNTS.txt` for local login credentials.
 
 **The governance rule that matters most:** implement only what a spec in `docs/` marks
 `Approved`. If a spec is ambiguous, silent, or still `Draft`, the correct move is to ask or raise
@@ -32,7 +41,14 @@ required for the local stack).
 # supabase/migrations/*.sql on first run / on `db reset`. No cloud account needed.
 supabase start
 
-# Re-apply all migrations from scratch against the local DB
+# Re-apply all migrations from scratch against the local DB, then apply
+# supabase/seed.sql (local-dev-only dummy data — see that file's own header
+# comment for the login accounts it creates and, importantly, what it
+# deliberately does NOT seed: regulatory_documents/regulatory_clauses/
+# compliance_findings stay empty here always — every compliance verdict in
+# this codebase must trace to a real cited rule, never fabricated text;
+# don't add seed rows to those three tables under any circumstance short of
+# real PRAG/Annex source text run through regulatory-document-ingest-run).
 supabase db reset
 
 # Serve all Edge Functions locally with hot reload (per_worker policy, config.toml).
@@ -49,16 +65,31 @@ supabase functions serve workflow-research-run --env-file supabase/.env.local
 # Stop the local stack
 supabase stop
 
+# Frontend dev server / production build (from inside frontend/)
+npm run dev
+npm run build   # tsc -b && vite build
+
 # Lint (matches .github/workflows/deno.yml)
 deno lint
 
-# Tests — none exist yet (see docs/18-Testing/ for the planned test pyramid);
-# `deno test -A` once *_test.ts / *.test.ts files exist
+# Tests exist now (docs/18-Testing/'s top 3 priority tiers — deterministic
+# validators, Veto Engine golden files, Workflow Engine gate-sequencing;
+# co-located *_shared/*_test.ts files, e.g. vetoEngine_test.ts). Requires an
+# actual Deno install; supabase's bundled edge-runtime binary is NOT a
+# general-purpose deno CLI and cannot run this. If no deno is on PATH
+# (true in some sandboxed dev environments), run it in a throwaway
+# container instead: `docker run --rm -v "$(pwd)/supabase/functions:/work"
+# -w /work denoland/deno:latest deno test -A` — but verify the bind mount
+# actually populated (`docker run ... ls /work`) before trusting the
+# result: a sandboxed shell's view of a host path can silently fail to
+# resolve for `-v`/`docker cp` alike; `docker cp` per-file into an
+# already-running container is the fallback that reliably works.
 deno test -A
 ```
 
-There is no build step — Edge Functions are plain Deno/TypeScript, bundled and type-checked by
+Edge Functions have no separate build step — plain Deno/TypeScript, bundled and type-checked by
 Supabase at `deploy`/`serve` time (a broken import or type error fails outright, not silently).
+The frontend does have a real build step (`tsc -b && vite build`, standard Vite/React).
 
 ## Architecture
 
@@ -89,7 +120,44 @@ Supabase at `deploy`/`serve` time (a broken import or type error fails outright,
   RLS alone. Has a `service_role` fast path for system-initiated calls (e.g. Postgres
   trigger/pg_net, ADR-0009 §4 Phase C.3) that resolves a synthetic `role: "system"` — deliberately
   never `owner`/`admin`, so an automated caller can never reach a Human Gate decision
-  (`requireGateRole`, EAS §9 Liability NFR).
+  (`requireGateRole`, EAS §9 Liability NFR). `resolvePlatformOperator()` is the separate,
+  no-project-dependency identity path for `profiles.is_platform_operator = true` callers (House of
+  Parliament, GDPR erasure, regulatory document ingestion) — it additionally enforces MFA
+  (`aal2` in the JWT), never just checks the flag.
+- **Context Engine** (`_shared/contextEngine.ts`, Platform Services spec §1): stateless — "has no
+  storage of its own." `assembleContext()` pulls tier-filtered `memory_entries` into a preamble
+  layered onto a Ministry's own prompt. Wired into `invokeAgent()` as an **opt-in** `contextEngine`
+  param — omitted, behaviour is byte-for-byte unchanged (the 8 ministries built before this existed
+  don't pass it); the 3 built alongside it (Fundraising, Finance & Administration, Procurement) do.
+- **Event Bus** (`_shared/eventBus.ts` → `platform_events`, Platform Services spec §2): `publishEvent()`
+  is wired at three call sites only — `workflow-gate-decide`, a veto failure in
+  `workflowEngine.ts`'s governance loop, `submission-package-submit` — not every write path; treat
+  this as the pattern to extend, not a claim that every event type is already published.
+- **Notification Engine** (`notification-dispatch-run`, `notification-channel-upsert-run`):
+  delivery is mocked exactly like `llmGateway.ts` mocks an LLM call absent a provider key — a
+  configured channel secret gets a real webhook POST, an unconfigured one logs `sent` with a
+  `(mock)`-prefixed note. Channel secrets live in **Supabase Vault**, never the plain
+  `notification_channels.config` column — `notification_channel_set_secret`/`_get_secret`
+  (migration 22) are the only read/write path, both `service_role`-only SECURITY DEFINER functions.
+- **GDPR erasure** (`gdpr-erasure-run`, Security spec §7): platform-operator-only, two request
+  types — `user_account` (hard-delete `organisation_members`/`profiles`/`auth.users`, anonymize
+  every real author-tracking column that actually exists in this schema — `projects.created_by`,
+  `clients.created_by`, `prompt_modules.author_id` — and `audit_events.actor_id`, never delete the
+  audit row) and `beneficiary_source_documents` (hard-delete named `knowledge_documents` rows).
+  Audit-log immutability always wins via anonymization, never row deletion — a platform-wide rule,
+  not a per-table judgment call.
+- **AI App Register** (`ai-app-register-upsert-run`, AI Governance spec §2): owner/admin,
+  organisation-scoped entries only — the 5 platform-wide template rows (`organisation_id IS NULL`,
+  seeded in migration 20) are not editable through this endpoint on purpose.
+- **Regulatory Knowledge Layer ingestion** (`_shared/regulatoryIngestion.ts` →
+  `regulatory-document-ingest-run`): parser/chunker/deterministic-obligation-classifier, all pure
+  transforms of caller-supplied text — never generates rule content. **`regulatory_clauses` and
+  `compliance_findings` are real, live, empty tables on purpose** — no real PRAG/Annex/Standard
+  Grant Contract source text exists anywhere in this repo (confirmed absent, not merely unfound).
+  Every downstream validator (`eligibilityEngine.ts`, `budgetEngine.ts`, `complianceStudio.ts`,
+  Compliance Studio's rollups) correctly returns `context_dependent` rather than a fabricated pass
+  until real source text is ingested. **Do not seed, mock, or hardcode plausible-sounding
+  regulatory rule text anywhere in this codebase** — this is the one line this project holds hardest.
 
 ### The governance state machine (Parliament Core)
 
@@ -123,18 +191,34 @@ pending/running → (research) → awaiting_human [Go/No-Go gate]
 
 ### Edge Functions (`supabase/functions/`)
 
-| Function | Purpose |
+45+ functions now — this table is representative, not exhaustive; `ls supabase/functions` for the
+full list. Grouped by what they own:
+
+| Function (representative) | Purpose |
 |---|---|
 | `workflow-research-run` | Runs the Research Ministry's Go/No-Go Risk Matrix, transitions to `awaiting_human` |
 | `workflow-governance-run` | Writing → Veto → Vote of No Confidence loop |
 | `workflow-gate-decide` | Human Gate decision (owner/admin only); three gate types, override enforcement |
-| `eligibility-report-run` | Runs the Eligibility Engine for an Opportunity |
-| `eligibility-report-get` | Reads the latest `eligibility_reports` row |
+| `eligibility-report-run` / `-get` | Eligibility Engine for an Opportunity |
 | `embedding-pipeline-run` | Chunk-embed pipeline across the fixed `SOURCE_TABLES` allowlist (ADR-0010) |
+| `opportunity-ingest-run` | Opportunity Intelligence ingestion — a structured-payload upsert endpoint, deliberately **not** a live web crawler (Grant Studio §2, ADR-0002); drafts `strategic_narrative`/scores via the Fundraising ministry |
+| `budget-narrative-draft-run` | Finance & Administration ministry — drafts the Budget Studio narrative a human refines; validation stays in the separate, deterministic `budgetEngine.ts`/`budget-validate-run` |
+| `procurement-decision-draft-run` | Procurement ministry — drafts a subcontract/vendor-selection rationale for human review, never writes `partners` itself |
+| `regulatory-document-ingest-run` | Regulatory Knowledge Layer ingestion — platform-operator-only; see the anti-fabrication note above |
+| `notification-dispatch-run` / `notification-channel-upsert-run` | Notification Engine + Vault-backed channel secrets |
+| `gdpr-erasure-run` | GDPR right-to-erasure, both request types (see above) |
+| `ai-app-register-upsert-run` | AI App Register, organisation-scoped entries |
+| `me-agent` / `compliance-agent` / `reporting-agent` | M&E / Compliance / Reporting ministries — internal fast path, ungoverned, no Workflow Instance |
+| `report-validate-run` / `report-submission-decide` / `report-lessons-learned` | Donor-facing report validation, the Report Submission Human Gate, and the Knowledge Platform learning-loop close |
+| `proposal-*`, `submission-package-*`, `partner-*` | Rest of Grant Studio (Proposal Builder, Submission Gateway, Consortium Builder pre/post-award) |
 
-`_shared/ministries/{research,writing}.ts` are ported near-verbatim from the real MVP
-(`researchMinistry.js`/`writingMinistry.js`); the other 7 of the platform's 9 v1 ministries are
-net-new, built to the same Ministry Adapter contract, not re-platformed from anything.
+**Ministry Library status: 8 of the 9 v1 ministries have real code.** `_shared/ministries/
+{research,writing}.ts` are ported near-verbatim from the real MVP (`researchMinistry.js`/
+`writingMinistry.js`); M&E/Compliance/Reporting live in `projectIntelligence.ts`; Fundraising/
+Finance & Administration/Procurement (`fundraising.ts`/`financeAdministration.ts`/`procurement.ts`)
+are net-new, built to the same Ministry Adapter contract. **Development is deliberately not
+implemented** — no concrete data contract exists for it anywhere in the spec set (checked); ADR-0011
+(`docs/21-ADRs/`) proposes one, not yet approved. Don't invent one — extend ADR-0011 or ask.
 
 ### Eligibility Engine (`_shared/eligibilityEngine.ts`)
 
@@ -155,9 +239,11 @@ new embedding-bearing table means updating this map, the RPC allowlist in migrat
 
 ### Database (`supabase/migrations/`)
 
-One additive migration sequence (numbered `01`–`15` in filenames) against the real, live
-Supabase project's original schema — not a fresh schema for a separate instance (ADR-0007). Full
-consolidated schema reference lives in `docs/11-Database-Schema/` (currently v1.5); treat that doc,
+One additive migration sequence (numbered `01`–`22` in filenames, growing) against the real, live
+Supabase project's original schema — not a fresh schema for a separate instance (ADR-0007).
+`docs/11-Database-Schema/`'s own spec text (currently v1.5) has **not** been kept in sync with
+migrations past `10_performance_hardening` — known, flagged drift, not something later migrations
+silently introduced. Full consolidated schema reference lives there anyway; treat that doc,
 not the migrations directory alone, as the source of truth for table shapes and constraints, since
 several columns/constraints have real CHECK values narrower than a spec's illustrative example
 (see the Eligibility Engine note above for one concrete instance of this).

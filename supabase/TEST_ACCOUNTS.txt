@@ -1,0 +1,53 @@
+LOCAL DEV TEST ACCOUNTS
+=======================
+Local Supabase stack only (created by supabase/seed.sql, runs on
+`supabase db reset` / `supabase start`). None of these exist on staging or
+production — do not reuse this password anywhere real.
+
+Organisation: Riverside Civil Society Alliance (Demo)
+Organisation ID: 00000000-0000-0000-0000-000000000001
+
+Password for all three accounts below: DemoPassword123!
+
+1) owner@demo.quorum.test
+   - organisation_members.role: owner
+   - Can approve/reject all Human Gates (Go/No-Go, Polish, Submission,
+     Report Submission) and access owner/admin-only endpoints.
+
+2) admin@demo.quorum.test
+   - organisation_members.role: admin
+   - profiles.is_platform_operator: true
+   - Same gate access as owner, PLUS is flagged as a platform operator —
+     but MFA (TOTP) is NOT enrolled for this account. Actions that require
+     it (House of Parliament screens, gdpr-erasure-run, regulatory-
+     document-ingest-run) will return 403 "this account requires MFA"
+     until TOTP is enrolled and verified for real through the UI/Auth API
+     — a plain SQL seed cannot do that step.
+
+3) member@demo.quorum.test
+   - organisation_members.role: member
+   - Cannot approve/reject Human Gates or call owner/admin-only endpoints
+     (report-submission-decide approve/reject, workflow-gate-decide,
+     notification-channel-upsert-run, ai-app-register-upsert-run, etc.)
+     — useful for confirming those really are blocked for a non-privileged
+     user.
+
+Signing up as a brand-new user instead of using one of the above:
+------------------------------------------------------------------
+Works correctly and will land you in this same Riverside organisation as a
+'member' (signup-provision-run was fixed on 2026-07-20 — it previously had
+a latent bug where a second organisation existing at all, such as the
+"Platform" sentinel org used for system audit attribution, could cause a
+fresh signup to silently join that sentinel instead of a real tenant,
+making the dummy data invisible). You will not see the dummy data if you
+sign up fresh AND the seed hasn't run yet, or if `db reset` was run without
+supabase/seed.sql present.
+
+Not seeded (deliberately):
+---------------------------
+regulatory_documents / regulatory_clauses / compliance_findings are empty
+on purpose — no real PRAG/Annex source text exists in this repo, and this
+project's own rule is that every compliance verdict must trace to a real
+cited rule, never fabricated text. Eligibility/Budget/Compliance checks
+will keep returning "context_dependent" for these demo accounts until real
+source text is ingested via regulatory-document-ingest-run.

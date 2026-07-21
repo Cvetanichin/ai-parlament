@@ -7,14 +7,17 @@ import { cn } from "@/app/lib/utils";
 // Frontend spec §1: "One React shell application, not four separately
 // deployed frontends" — Grant Studio, Project Operations, Knowledge Hub, and
 // the Executive Dashboard are top-level nav sections within this one shell.
-// Only Grant Studio has real routes this pass (see the plan's phasing); the
-// other three are listed here per §1's information architecture even before
-// their own screens exist, rather than hidden and re-added later.
+// All four now have real routes. Executive Dashboard (§5) is read-only
+// aggregation: pipeline/deadlines/cost are direct Supabase reads,
+// compliance posture goes through executive-dashboard-compliance-get
+// (getOrganisationComplianceOverview, complianceStudio.ts) — see
+// DashboardPage.tsx for the one known gap (report due dates aren't
+// modeled in this schema, so deadlines come from opportunities only).
 const SECTIONS = [
   { to: "/grant-studio", label: "Grant Studio", enabled: true },
-  { to: "/project-operations", label: "Project Operations", enabled: false },
-  { to: "/knowledge-hub", label: "Knowledge Hub", enabled: false },
-  { to: "/executive-dashboard", label: "Executive Dashboard", enabled: false },
+  { to: "/project-operations", label: "Project Operations", enabled: true },
+  { to: "/knowledge-hub", label: "Knowledge Hub", enabled: true },
+  { to: "/executive-dashboard", label: "Executive Dashboard", enabled: true },
 ];
 
 export function AppShell() {
