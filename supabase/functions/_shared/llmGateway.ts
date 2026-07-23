@@ -70,7 +70,22 @@ export async function generateStructured(
           },
           body: JSON.stringify({
             model: options.binding.model,
-            max_tokens: 1024,
+            // 2048, not the original 1024 or the briefly-tried 4096 -- a
+            // live end-to-end test (2026-07-21) found both failure modes:
+            // 1024 truncated specialist/validator responses mid-sentence
+            // (why validator_indicators never reached its required
+            // Assessment line); 4096 fixed that but pushed total wall-clock
+            // time for a 2-retry M&E run past the Edge Function platform's
+            // wall-clock limit (150s free / 400s paid -- see
+            // PHASE1_RESCOPING.md's follow-up note on this). 2048 is a
+            // pragmatic middle ground, not a proven-sufficient value --
+            // the real fix is moving multi-call, retry-capable workflows
+            // off a single synchronous request (Supabase's own guidance:
+            // background jobs/queues), which is a Phase 2+ architecture
+            // decision, not a token-count tweak. Existing short-form
+            // ministries (research/writing) stay well under any of these
+            // caps, so this shared default change doesn't affect them.
+            max_tokens: 2048,
             tools: [{
               name: options.schemaName,
               description: `Return output conforming exactly to the ${options.schemaName} schema. Call this tool with the result — do not respond in free text.`,
@@ -122,7 +137,12 @@ export async function generateText(prompt: string, options: GenerateOptions): Pr
           },
           body: JSON.stringify({
             model: options.binding.model,
-            max_tokens: 1024,
+            // 2048 -- see generateStructured's comment above for the full
+            // rationale (1024 truncated, 4096 hit the wall-clock limit).
+            // The same truncation risk applies to any plain-text agent with
+            // a verbose prompt (specialist_me_framework included, confirmed
+            // truncated in the same live test).
+            max_tokens: 2048,
             messages: [{ role: "user", content: prompt }],
           }),
         });
