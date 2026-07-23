@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/routes/RequireAuth";
+import { RedirectIfAuthed } from "@/routes/RedirectIfAuthed";
 import { Login } from "@/routes/Login";
 import { GrantStudioHome } from "@/routes/GrantStudioHome";
 import { ComingSoon } from "@/routes/ComingSoon";
@@ -15,7 +16,14 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            <Route
+              path="/login"
+              element={
+                <RedirectIfAuthed>
+                  <Login />
+                </RedirectIfAuthed>
+              }
+            />
             <Route
               element={
                 <RequireAuth>
