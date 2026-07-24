@@ -20,6 +20,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller, requireGateRole } from "../_shared/auth.ts";
 import { decideGate, GateType } from "../_shared/workflowEngine.ts";
+import { withCors } from "../_shared/cors.ts";
 
 // ADR-0009 §4 Phase C.2: read at invocation time. Defaults to "shadow" --
 // the safe default -- when unset, so no secret has to be configured for
@@ -28,7 +29,7 @@ import { decideGate, GateType } from "../_shared/workflowEngine.ts";
 // Phase C.6 re-platforms the live ministries onto the governance loop.
 const GOVERNANCE_MODE = Deno.env.get("GOVERNANCE_MODE") ?? "shadow";
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: { code: "method_not_allowed", message: "POST only" } }), { status: 405 });
   }
@@ -74,4 +75,4 @@ Deno.serve(async (req: Request) => {
               : 500;
     return new Response(JSON.stringify({ error: { code: "error", message } }), { status });
   }
-});
+}));

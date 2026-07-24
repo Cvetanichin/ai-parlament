@@ -11,8 +11,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller } from "../_shared/auth.ts";
+import { withCors } from "../_shared/cors.ts";
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== "GET") {
     return new Response(JSON.stringify({ error: { code: "method_not_allowed", message: "GET only" } }), { status: 405 });
   }
@@ -50,4 +51,4 @@ Deno.serve(async (req: Request) => {
     const status = message.startsWith("unauthorized") ? 401 : message.startsWith("forbidden") ? 403 : message.startsWith("not_found") ? 404 : 500;
     return new Response(JSON.stringify({ error: { code: "error", message } }), { status });
   }
-});
+}));

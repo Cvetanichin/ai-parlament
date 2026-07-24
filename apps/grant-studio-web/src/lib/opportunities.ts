@@ -131,3 +131,49 @@ export async function startProposalFromOpportunity(organisationId: string, oppor
   if (error) throw error;
   return data.id;
 }
+
+export interface Proposal {
+  id: string;
+  organisationId: string;
+  stage: "concept_note" | "full_application";
+  status: string;
+  opportunity: {
+    id: string;
+    title: string;
+    description: string | null;
+    eligibilitySummary: string | null;
+    donorName: string | null;
+  };
+}
+
+export async function fetchProposal(proposalId: string): Promise<Proposal> {
+  const { data, error } = await supabase
+    .from("proposals")
+    .select(
+      `id, organisation_id, stage, status,
+       opportunity:opportunities(id, title, description, eligibility_summary, donor:donors(name))`,
+    )
+    .eq("id", proposalId)
+    .single();
+  if (error) throw error;
+  const row = data as unknown as {
+    id: string;
+    organisation_id: string;
+    stage: "concept_note" | "full_application";
+    status: string;
+    opportunity: { id: string; title: string; description: string | null; eligibility_summary: string | null; donor: { name: string } | null };
+  };
+  return {
+    id: row.id,
+    organisationId: row.organisation_id,
+    stage: row.stage,
+    status: row.status,
+    opportunity: {
+      id: row.opportunity.id,
+      title: row.opportunity.title,
+      description: row.opportunity.description,
+      eligibilitySummary: row.opportunity.eligibility_summary,
+      donorName: row.opportunity.donor?.name ?? null,
+    },
+  };
+}
