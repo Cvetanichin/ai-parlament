@@ -86,11 +86,12 @@ export function ProposalDetail() {
     <div className="space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">{proposal.opportunity.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {proposal.opportunity.donorName ?? "No donor on file"} · Stage:{" "}
-          <Badge variant="outline">{proposal.stage.replace("_", " ")}</Badge> · Status:{" "}
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <span>{proposal.opportunity.donorName ?? "No donor on file"} · Stage:</span>
+          <Badge variant="outline">{proposal.stage.replace("_", " ")}</Badge>
+          <span>· Status:</span>
           <Badge variant="outline">{proposal.status}</Badge>
-        </p>
+        </div>
       </header>
 
       <Card>

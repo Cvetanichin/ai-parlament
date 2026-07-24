@@ -24,6 +24,13 @@ dependency-ordered sequence ("brings Research's Eligibility API usage
 online; blocks Human Gate 2"). **Deployed to staging and verified**, 14 July
 2026 — see Verification below.
 
+**Grant Studio frontend (`apps/grant-studio-web`, `../docs/13-Frontend/`)
+— Phases A–C built and verified live, 24 July 2026**: authenticated shell,
+Opportunity Pipeline, Eligibility Report + Go/No-Go gate (reusing this
+repo's real `eligibility-report-run`/`-get`, `workflow-research-run`,
+`workflow-gate-decide` functions against real browser traffic for the first
+time — see the CORS fix under Known constraints below).
+
 ## What's built
 
 ```
@@ -38,6 +45,9 @@ supabase/
       llmGateway.ts      -- multi-provider LLM Gateway (Anthropic default, Gemini,
                              mock fallback) — Layer 4, EAS §3.4
       auth.ts            -- caller resolution + organisation membership + gate-role check
+      cors.ts            -- withCors() wrapper: OPTIONS preflight + Access-Control-Allow-*
+                             headers on every response (needed once a real browser, not
+                             just curl/service-role, started calling these functions)
       agentRuntime.ts    -- Agent Runtime (Parliament Core §3): register/invoke,
                              writes real agent_runs rows
       vetoEngine.ts      -- Tripartite Veto Engine, ported from vetoEngine.js;
@@ -71,6 +81,20 @@ Gateway call that would have bypassed EAS principle 8 (auditable by
 construction).
 
 ## Known constraints discovered while building
+
+- **CORS — every Edge Function above was built and verified server-to-server
+  (curl, service-role JWTs) only.** None of that ever triggers a browser CORS
+  preflight, so no function here handled `OPTIONS` or set
+  `Access-Control-Allow-*` headers. `apps/grant-studio-web` (the Grant Studio
+  frontend, `../docs/13-Frontend/`) is the first real browser caller, and
+  every call failed at the preflight with an opaque "Failed to fetch" —
+  `verify_jwt` lets an unauthenticated `OPTIONS` request through to the
+  function, but each function's own method check then returned a `405` with
+  no CORS headers, which the browser rejects before the real request is ever
+  sent. Fixed with `_shared/cors.ts` (`withCors()`: short-circuits `OPTIONS`,
+  stamps CORS headers on every response) wired into all six functions this
+  repo has today — `eligibility-report-run`/`-get`, `workflow-gate-decide`,
+  `workflow-research-run`, `workflow-governance-run`, `prompt-orchestration-run`.
 
 - `agent_runs.project_id` is `NOT NULL` on the real, live table — confirmed
   against the actual schema, not assumed. Every Agent Invocation (including
@@ -313,15 +337,25 @@ left behind.
    against the actual constraints (not the spec's illustrative shape) — see
    "Known constraints discovered while building" above.
 
-   **Deliberately not wired into `decideGate`'s Go/No-Go gate yet.** Grant
-   Studio §3 states the gate "requires this report before it can be
-   approved," but `workflow_instances` in this slice targets a `project`
-   directly (brief supplied inline to `workflow-research-run`) — there is no
-   first-class `Opportunity` flowing through a workflow instance yet, since
-   Grant Studio Module 1 (Opportunity Intelligence) is unbuilt. Wiring the
-   precondition now would mean guessing an Opportunity↔instance linkage the
-   spec doesn't define anywhere, which risks locking in the wrong shape
-   silently. Flagged here rather than guessed at in code.
+   **Update, 24 July 2026 — the Opportunity↔instance linkage this note
+   originally said didn't exist now does, built in `apps/grant-studio-web`
+   (`../docs/13-Frontend/`).** A real Opportunity → Proposal → pre-award
+   `projects` row → `workflow_instances` chain exists and is live-verified:
+   `ensureProjectForOpportunity()` creates/reuses a `projects` row
+   (`stage: 'pre_award'` — that CHECK-constraint value exists for exactly
+   this reason, confirmed against the real schema, not assumed) keyed by
+   `(organisation_id, opportunity_id)`, so every Grant Studio proposal has a
+   real `projects.id` to anchor `agent_runs`/`workflow_instances` against
+   before award. The Eligibility Report is now surfaced to the human
+   directly inside the Go/No-Go gate's UI (`HumanGate`'s `supportingRecords`,
+   alongside the Research Ministry's Go/No-Go Risk Matrix) — a human
+   reviewing the gate sees both. **What's still genuinely not done:** the
+   server-side hard block Grant Studio §3 describes ("the platform blocks
+   the gate server-side if Research has not run") — `decideGate` still does
+   not itself refuse a Go/No-Go approval when no `eligibility_reports` row
+   exists for the opportunity; today that's enforced only by the UI not
+   offering the gate until Research has been run, not by the server. Real
+   remaining gap, not fixed here.
 
 **Test artifacts**: the Eligibility Engine test org/project/opportunities/
 compliance_findings/regulatory_clauses/regulatory_documents rows were all
@@ -339,8 +373,11 @@ deleted from staging after verification — nothing left behind.
   embeddings are all unbuilt. This is the biggest real gap blocking every
   other Grant Studio module's compliance-checking from being more than
   `context_dependent`.
-- **Eligibility Engine's Go/No-Go gate precondition** — not wired into
-  `decideGate`, per the note above.
+- **Eligibility Engine's Go/No-Go gate precondition is still not a
+  server-side hard block in `decideGate`** — per the update above, the
+  Opportunity↔instance linkage this was originally blocked on now exists
+  (`apps/grant-studio-web`), so this is a real, addressable gap now, not a
+  design-shape unknown.
 - **Opportunity Intelligence (Grant Studio Module 1)** — no real opportunity
   discovery/scraping exists; this session's Opportunity rows were hand-seeded
   test fixtures, not real ingested data.
