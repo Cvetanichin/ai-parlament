@@ -1,16 +1,16 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Route, Routes } from "react-router-dom";
+import { Pipeline } from "@/routes/grant-studio/Pipeline";
+import { ProposalPlaceholder } from "@/routes/grant-studio/ProposalPlaceholder";
 
-// Phase B (Opportunity Pipeline) lands here next -- direct Supabase read of
-// `opportunities`, ported from grant-stream-studio's PipelineTab.tsx KPI
-// strip and urgency-color deadline logic.
+// Grant Studio's own sub-router, nested under App.tsx's "/grant-studio/*"
+// route -- Phase C onward add more sub-routes here (eligibility, concept
+// note, logframe, budget, compliance, submission) without touching the
+// top-level shell routing in App.tsx.
 export function GrantStudioHome() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Grant Studio</CardTitle>
-        <CardDescription>Opportunity Pipeline lands here in Phase B.</CardDescription>
-      </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">Shell scaffolding complete (Phase A).</CardContent>
-    </Card>
+    <Routes>
+      <Route index element={<Pipeline />} />
+      <Route path="proposals/:proposalId" element={<ProposalPlaceholder />} />
+    </Routes>
   );
 }
