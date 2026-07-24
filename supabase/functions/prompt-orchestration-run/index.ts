@@ -23,6 +23,7 @@ import { resolveCaller } from "../_shared/auth.ts";
 import { invokeAgent } from "../_shared/agentRuntime.ts";
 import { startInstance, runPromptOrchestrationTask } from "../_shared/workflowEngine.ts";
 import { resolveWorkflowForRequest } from "../_shared/promptOrchestrationRouting.ts";
+import { withCors } from "../_shared/cors.ts";
 
 import * as intakeNormalizer from "../_shared/ministries/promptOrchestration/intakeNormalizer.ts";
 import * as intentClassifier from "../_shared/ministries/promptOrchestration/intentClassifier.ts";
@@ -83,7 +84,7 @@ const DOMAIN_WORKFLOWS: Record<string, DomainWorkflow> = {
   },
 };
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: { code: "method_not_allowed", message: "POST only" } }), { status: 405 });
   }
@@ -235,4 +236,4 @@ Deno.serve(async (req: Request) => {
           : 500;
     return new Response(JSON.stringify({ error: { code: "error", message } }), { status });
   }
-});
+}));
