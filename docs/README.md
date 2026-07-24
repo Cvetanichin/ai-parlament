@@ -69,11 +69,13 @@ only then updates the EAS or a detail spec.
 
 ## What changed from the prior roadmap
 
-`Parliamentary_AI_Engine_Roadmap.md` (the original MVP planning document) is not
-deleted or wrong — it's superseded as the architecture authority and kept as
-historical context for Phase 0–1 decisions and budget/risk data that's still
-accurate. The EAS is what governs structure now; the roadmap's phase table is
-explicitly superseded by `docs/20-Roadmap/` once that's written.
+`Parliamentary_AI_Engine_Roadmap.md` (the original MVP planning document) was
+never actually committed to this repo — it existed only outside version
+control, referenced here for continuity with Phase 0–1 decisions and
+budget/risk data that's still accurate, not as a file you can open in this
+tree. The EAS is what governs structure now; its phase table is superseded
+by `docs/20-Roadmap/Roadmap-Specification-v1.0.md`, which is written and
+Approved (see Session 3 below).
 
 ## Existing assets — where they went
 
@@ -286,6 +288,8 @@ billed project, even though the change is low-risk.
 | 0006 | Accepted | Vector store — pgvector, co-located with PostgreSQL |
 | 0007 | Accepted | Supabase (Intelligence Workspace's existing project) as the Layer 4 backbone |
 | 0008 | Accepted | Rename `docs/09-` to "Knowledge Hub" — resolves its naming collision with Project Operations |
+| 0009 | Accepted | Governance Layer cutover — shadow-run strategy, one ministry at a time, compliance-agent first |
+| 0010 | Accepted | Embedding provider and a shared embedding pipeline (not per-service duplication) |
 | 0011 | Accepted | Prompt Orchestration Platform absorbed into Parliament Core — no separate Supabase project/control-plane; specialist/validator/formatter modules become `ai_agents`/`prompt_modules` rows sharing one Edge Function |
 | 0012 | Accepted | Schema-enforced structured output via Anthropic tool-use (`generateStructured`), not the OpenAI Responses API — no second provider introduced |
 | 0013 | Accepted | Grant Studio Web: `withCors()` as the standing pattern for every Edge Function; pre-award `projects` row anchoring (`stage='pre_award'`) for proposal-scoped agent/workflow activity, no schema change |
