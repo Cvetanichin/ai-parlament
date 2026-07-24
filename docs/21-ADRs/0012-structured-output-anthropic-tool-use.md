@@ -3,7 +3,7 @@ adr: 0012
 title: Schema-Enforced Structured Output via Anthropic Tool Use, Not the OpenAI Responses API
 status: Accepted
 date: 2026-07-20
-amends: ../../apps/prompt-orchestration-platform/docs/ADR/010-openai-integration.md, ../../apps/prompt-orchestration-platform/docs/PROMPT_ENGINE.md, ../../supabase/functions/_shared/llmGateway.ts
+amends: ../../apps/prompt-orchestration-platform/docs/_superseded/ADR/010-openai-integration.md, ../../apps/prompt-orchestration-platform/docs/PROMPT_ENGINE.md, ../../supabase/functions/_shared/llmGateway.ts
 ---
 
 # ADR-0012: Schema-Enforced Structured Output via Anthropic Tool Use
