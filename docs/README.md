@@ -286,6 +286,9 @@ billed project, even though the change is low-risk.
 | 0006 | Accepted | Vector store — pgvector, co-located with PostgreSQL |
 | 0007 | Accepted | Supabase (Intelligence Workspace's existing project) as the Layer 4 backbone |
 | 0008 | Accepted | Rename `docs/09-` to "Knowledge Hub" — resolves its naming collision with Project Operations |
+| 0011 | Accepted | Prompt Orchestration Platform absorbed into Parliament Core — no separate Supabase project/control-plane; specialist/validator/formatter modules become `ai_agents`/`prompt_modules` rows sharing one Edge Function |
+| 0012 | Accepted | Schema-enforced structured output via Anthropic tool-use (`generateStructured`), not the OpenAI Responses API — no second provider introduced |
+| 0013 | Accepted | Grant Studio Web: `withCors()` as the standing pattern for every Edge Function; pre-award `projects` row anchoring (`stage='pre_award'`) for proposal-scoped agent/workflow activity, no schema change |
 
 Every migration touching a real, live table (§1, §3, §5 of the Database
 Schema spec) is now a hard requirement to validate on a Supabase branch or
@@ -411,3 +414,106 @@ competing identity. Every application-level name (Grant Studio, Project
 Operations, Knowledge Hub, House of Parliament) is confirmed exactly as
 already specified — nothing renamed, just placed correctly in the
 hierarchy. Product Vision is now **v1.2**.
+
+## Session 6 — Prompt Orchestration Platform Absorbed; Grant Studio Web Frontend Built and Verified Live
+
+**Prompt Orchestration Platform (POP), a separate system uploaded
+independently of this spec set, is folded into Parliament Core rather than
+run alongside it (ADR-0011).** No new Supabase project, no separate
+control-plane: POP's specialist/validator/formatter modules for its three
+v1 domains (`monitoring_and_evaluation`, `product_and_mvp`,
+`prompt_engineering`) became new `ai_agents`/`prompt_modules` rows sharing
+one Edge Function (`prompt-orchestration-run`), reusing the existing
+Workflow Engine/Veto Engine machinery instead of duplicating it. Schema:
+5 new tables + additive columns
+(`supabase/migrations/20260720140000_17_prompt_orchestration_schema.sql`),
+seeded with 7 agents, 3 workflow definitions, and priority-ordered routing
+rules
+(`..._18_prompt_orchestration_seed.sql`), both applied to staging. A
+77-prompt independent prompt library (`PromptLibraryV7_2.jsx`, a separate
+product called "Prompt Architect Pro") was reviewed per your instruction —
+its genuinely useful specialist-prompt content was mined into Grant
+Studio's specialist prompts
+(`apps/prompt-orchestration-platform/docs/SPECIALIST_PROMPTS_SEED.md`) and
+the library itself retired, not carried forward as a competing system.
+
+**ADR-0012** extends `llmGateway.ts` with `generateStructured()` — Anthropic
+tool-use forcing a single tool call, functionally equivalent to OpenAI's
+strict Structured Outputs but on the provider every agent in this platform
+already runs on. No second provider, no second credential, no
+provider-selection branch for future strict-output agents.
+
+**Live end-to-end test of the Prompt Orchestration pipeline found and fixed
+two real bugs, both only reachable against a real model, not the mock
+path:** `max_tokens: 1024` truncated specialist/validator responses
+mid-sentence (why `validator_indicators` never reached its required
+`Assessment:` line); raising it to 4096 fixed truncation but pushed a
+2-retry M&E run's wall-clock time past the Edge Function platform's limit
+(150s free / 400s paid). Settled on `2048` as a pragmatic interim value —
+explicitly **not** claimed as proven-sufficient; the real fix (moving
+multi-call, retry-capable workflows off a single synchronous request onto
+background execution) is flagged as necessary Phase 2+ architecture work,
+not silently deferred.
+
+**Grant Studio gets its first real frontend — `apps/grant-studio-web`,
+Phases A–D built and live-verified (genuine, billed Anthropic calls, not
+mocked).** Prompted by a request to consolidate a Lovable-built prototype
+(`Cvetanichin/grant-stream-studio`, "CivicFlow") into one working app:
+investigation found a genuinely useful pre-award grant UI (Funding
+Pipeline, Concept Note/Full Application editors, an EU 90/10/7% budget rule
+engine) but zero usable backend — a third, empty Supabase project,
+localStorage-only persistence via Zustand, no AI, no governance concept at
+all. Rather than adopt its Cloudflare Workers/TanStack Start stack (absent
+everywhere else in this platform), the decision was a new plain
+Vite+React+TypeScript+shadcn/ui SPA inside this repo, porting the UI
+patterns onto the real `cso-playground` schema:
+
+- **Phase A** — authenticated shell, real Supabase Auth (session
+  persistence, sign-out, redirect guards both directions — the existing
+  MVP playground's auth scaffolding existed in source but was never wired
+  to anything), and the reusable Human Gate UI component
+  (`docs/13-Frontend/` §4) rendering whatever Gate Request record it's
+  given. **PR #11, merged.**
+- **Phase B** — Opportunity Pipeline: KPI strip, cluster/status filters,
+  urgency-coloured deadlines, against the real `opportunities`/`donors`
+  tables; "Start proposal from this call" creates a real `proposals` row.
+- **Phase C** — Eligibility Report + a real Go/No-Go gate (a genuine
+  Research Ministry call producing a real risk matrix, not mocked). This
+  surfaced two real, previously-invisible gaps: **every Edge Function in
+  this repo had only ever been called server-to-server (curl, service-role
+  JWTs) — grant-studio-web is the first real browser caller, and every call
+  failed at the CORS preflight with an opaque "Failed to fetch"**, fixed
+  with a `withCors()` wrapper applied to all six functions (ADR-0013); and
+  the real gate machinery (`agent_runs.project_id` `NOT NULL`) requires a
+  `projects` row even pre-award, resolved by anchoring each proposal to a
+  `projects` row at `stage='pre_award'` — a value the schema's own `CHECK`
+  constraint already allowed, not a new mechanism.
+- **Phase D** — Concept Note drafting via the actual Writing Ministry →
+  Tripartite Veto Engine → Vote of No Confidence loop → Polish Gate (not
+  Prompt Orchestration's `prompt-orchestration-run`, a separate system for
+  POP's own three domains). Live-verified including a real veto failure (a
+  genuine ~4800-character Claude draft correctly failed a 4000-character
+  deterministic constraint), a Vote of No Confidence retry, escalation, and
+  a Compliance Override correctly requiring and recording a justification.
+  **Real, deliberate scope decision, not an oversight:** Grant Studio spec
+  §5 describes each donor section as its own drafting Workflow Instance;
+  the already-built, already-verified `workflowEngine.ts` implements one
+  continuous instance per proposal instead — v1 drafts one holistic
+  narrative section to match what's actually deployed, recorded in
+  ADR-0013 rather than silently forcing the fuller model or silently
+  falling short of the spec.
+- **PR #12, open against `main`**, covers Phases B–D plus the CORS/ADR-0013
+  work — PR #11 had already merged with only Phase A's two commits, so
+  subsequent phases landed on the same branch with no PR tracking them
+  until this was caught and a fresh PR opened with an accurate,
+  live-verified description.
+
+**What's still genuinely open, flagged rather than silently resolved:**
+`decideGate` does not yet hard-block the Go/No-Go gate server-side if no
+`eligibility_reports` row exists (Grant Studio §3's stated requirement) —
+today the Eligibility Report is surfaced in the gate's UI, which is a
+convenience, not the enforcement `docs/13-Frontend/` §7's "no
+client-side-only gating" NFR calls for. Per-donor-section Workflow
+Instances (§5's fuller model) remain unbuilt, per the scope decision above.
+Grant Studio Web's remaining phases (Logframe, Budget, Compliance/
+Submission, Consortium) are unbuilt.
