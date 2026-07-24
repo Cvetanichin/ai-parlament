@@ -125,6 +125,10 @@ export interface WorkflowInstance {
   voteOfNoConfidenceCount: number;
 }
 
+// Named for its Phase C origin, but generic in practice: this is THE one
+// continuous Workflow Instance per proposal (go_no_go -> writing -> polish
+// -> submission all share it, per workflowEngine.ts's real, built state
+// machine) -- Phase D's governance-loop step reuses the exact same fetch.
 export async function fetchGoNoGoInstance(organisationId: string, projectId: string): Promise<WorkflowInstance | null> {
   const { data, error } = await supabase
     .from("workflow_instances")
@@ -222,4 +226,99 @@ export async function fetchResearchResult(workflowInstanceId: string): Promise<R
   if (error) throw error;
   const output = (data?.detail as { output?: ResearchResult } | undefined)?.output;
   return output ?? null;
+}
+
+export interface VetoCheckResult {
+  pass: boolean;
+  failures: string[];
+}
+
+export interface VetoChecks {
+  deterministic: VetoCheckResult;
+  lexical: VetoCheckResult;
+  semantic: VetoCheckResult;
+}
+
+export interface GovernanceResult {
+  draft: string | null;
+  vetoPassed: boolean;
+  vetoChecks: VetoChecks | null;
+  attempts: number;
+  confidence: "high" | "medium" | "low";
+}
+
+// Runs the Writing Ministry -> Tripartite Veto Engine -> Vote of No
+// Confidence loop (runGovernanceLoop) -- the real drafting mechanism for
+// Grant Studio, not prompt-orchestration-run (a separate system for the
+// three Prompt Orchestration Platform domains, unrelated to Grant Studio
+// proposal writing). Requires the instance to already be past the Go/No-Go
+// gate (state 'running', not 'awaiting_human') -- workflow-governance-run
+// 409s otherwise.
+export async function runGovernanceDraft(workflowInstanceId: string, projectId: string, brief: string): Promise<GovernanceResult> {
+  return callEdgeFunction<GovernanceResult>("workflow-governance-run", {
+    workflowInstanceId,
+    projectId,
+    brief,
+    constraints: { characterLimit: 4000, requiredKeywords: [] },
+  });
+}
+
+// Reload-resilience, same rationale as fetchResearchResult: the veto
+// result isn't stored anywhere else queryable except this audit_events
+// row's detail (written by runGovernanceLoop's writeAuditEvent call).
+export async function fetchVetoResult(workflowInstanceId: string): Promise<{ vetoChecks: VetoChecks; pass: boolean } | null> {
+  const { data, error } = await supabase
+    .from("audit_events")
+    .select("detail")
+    .eq("target_id", workflowInstanceId)
+    .eq("action", "veto_result")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  const detail = data?.detail as { checks?: VetoChecks; pass?: boolean } | undefined;
+  if (!detail?.checks) return null;
+  return { vetoChecks: detail.checks, pass: Boolean(detail.pass) };
+}
+
+export type ExpectedGate = "go_no_go" | "polish" | "submission";
+
+// Mirrors decideGate()'s own getExpectedGateType server-side exactly
+// (workflowEngine.ts): the most recent of feasibility_assessment/veto_result/
+// an approved polish gate_decision determines what's pending next. Needed
+// because state alone is ambiguous -- 'awaiting_human' means "awaiting
+// Go/No-Go" before any research has run, "awaiting Polish" after the
+// governance loop, and "awaiting Submission" after Polish is approved, and
+// the UI must not keep offering an already-decided gate (confirmed live:
+// without this, the Polish Gate card kept rendering, Approve-able, even
+// after Polish had already been approved and the instance had moved on to
+// awaiting Submission -- decideGate would 409 gate_precondition_unmet if
+// acted on, but the UI itself was stale/wrong).
+export async function fetchExpectedGate(workflowInstanceId: string): Promise<ExpectedGate | null> {
+  const { data, error } = await supabase
+    .from("audit_events")
+    .select("action, detail")
+    .eq("target_id", workflowInstanceId)
+    .in("action", ["feasibility_assessment", "veto_result", "gate_decision"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  if (data.action === "feasibility_assessment") return "go_no_go";
+  if (data.action === "veto_result") return "polish";
+  if (data.action === "gate_decision") {
+    const detail = data.detail as { gateType?: ExpectedGate; decision?: string } | null;
+    if (detail?.gateType === "polish" && detail?.decision === "approved") return "submission";
+  }
+  return null;
+}
+
+// Domain-Model-Specification-v1.0.md's own vocabulary: "proposal status is
+// freeform, driven by Workflow Instance state." Mirrors the instance's
+// state onto proposals.status at each real transition so the field isn't
+// frozen at its Phase B creation-time value ("pending") forever.
+export async function syncProposalStatus(proposalId: string, status: string): Promise<void> {
+  const { error } = await supabase.from("proposals").update({ status }).eq("id", proposalId);
+  if (error) throw error;
 }

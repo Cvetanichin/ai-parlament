@@ -26,7 +26,15 @@ export interface GateRequest {
   knownOverride?: boolean;
 }
 
+// Matches workflow-gate-decide's real response body exactly
+// ({ ...decideGateResult, governanceMode }) -- decideGate() returns
+// { instanceId, gateType, state, wasOverride }, not `status` (an earlier
+// version of this type had that wrong; nothing read the field until Phase D
+// needed the real post-decision state to sync proposals.status with it).
 export interface GateDecisionResult {
-  status: string;
+  instanceId: string;
+  gateType: GateType;
+  state: string;
+  wasOverride: boolean;
   governanceMode: string;
 }
