@@ -6,7 +6,7 @@ status: APPROVED — approved by Product Owner 12 July 2026
 owner: Vas (Product Owner) — Civil Society Senior Consultant
 architect: Claude (Chief Systems Architect, Claude Cowork)
 implementer: Claude Code (Lead Developer) — implements approved specifications only
-supersedes: Parliamentary_AI_Engine_Roadmap.md (roadmap-level document; retained as historical Phase 0-1 reference, no longer authoritative on architecture)
+supersedes: Parliamentary_AI_Engine_Roadmap.md (the original roadmap-level planning document — never actually committed to this repo, existed only outside version control; referenced here for continuity with Phase 0-1 decisions and budget/risk data that's still accurate, no longer authoritative on architecture)
 related_repo: https://github.com/Cvetanichin/parliamentary-ai-gov
 ---
 

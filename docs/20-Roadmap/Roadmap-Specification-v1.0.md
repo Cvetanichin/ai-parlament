@@ -1,7 +1,7 @@
 ---
 document: Development Roadmap Specification
 version: 1.0
-status: APPROVED — approved by Product Owner 12 July 2026; supersedes the phase table in Parliamentary_AI_Engine_Roadmap.md (historical, retained as background context only)
+status: APPROVED — approved by Product Owner 12 July 2026; supersedes the phase table in Parliamentary_AI_Engine_Roadmap.md (a historical planning document never actually committed to this repo — existed only outside version control, referenced for its still-valid budget/risk data and Phase 0-1 background only)
 parent: ../../00-EAS-v1.0.md (EAS §13 Immediate Next Specifications)
 ---
 
@@ -11,9 +11,10 @@ parent: ../../00-EAS-v1.0.md (EAS §13 Immediate Next Specifications)
 
 The historical `Parliamentary_AI_Engine_Roadmap.md` phase table is no
 longer the authoritative build sequence — this document is, per the
-top-level `README.md`'s standing note. The historical document's budget/risk
-data and Phase 0–1 background remain valid reference material; its phase
-*ordering* does not, because it predates every spec now Approved. This
+top-level `README.md`'s standing note. That document was never actually
+committed to this repo — it existed only outside version control. Its
+budget/risk data and Phase 0–1 background remain valid reference material;
+its phase *ordering* does not, because it predates every spec now Approved. This
 document sequences build work against what is **actually specified and
 Approved today**, not a plan made before the architecture existed.
 

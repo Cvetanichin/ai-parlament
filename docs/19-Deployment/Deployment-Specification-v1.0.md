@@ -53,8 +53,9 @@ ADR, it's the fulfillment of its stated alternative.
 | Status | `ACTIVE_HEALTHY`, provisioned 12 July 2026 |
 
 **Schema parity confirmed.** The staging project has been seeded with the
-exact same three migration files currently in
-`supabase/migrations/` in the live repo
+exact same three migration files currently in the external Intelligence
+Workspace project's own `supabase/migrations/` (not this repo's — those
+files don't exist here)
 (`20260609000001_initial_schema.sql`, `20260609000002_fix_rls_performance_
 and_indexes.sql`, `20260617000001_profiles.sql`), applied in the same
 order, plus `create extension if not exists vector;` (ADR-0006). A direct

@@ -3,7 +3,7 @@ adr: 0011
 title: Prompt Orchestration Platform Absorbed as New Parliament Core Ministries, Not a Standalone System
 status: Accepted
 date: 2026-07-20
-amends: ../03-Parliament-Core/Parliament-Core-Specification-v1.0.md §3.6, ../11-Database-Schema/, ../../apps/prompt-orchestration-platform/docs/BUILD_SPEC.md, ../../apps/prompt-orchestration-platform/docs/DATABASE.md
+amends: ../03-Parliament-Core/Parliament-Core-Specification-v1.0.md §3.6, ../11-Database-Schema/, ../../apps/prompt-orchestration-platform/docs/_superseded/BUILD_SPEC.md, ../../apps/prompt-orchestration-platform/docs/_superseded/DATABASE.md
 ---
 
 # ADR-0011: Prompt Orchestration Platform Absorbed as New Parliament Core Ministries
@@ -28,7 +28,7 @@ Platform" was uploaded to this repository as a standalone system: its own
 `INTAKE_NORMALIZER` -> `INTENT_CLASSIFIER` -> `WORKFLOW_ROUTER` ->
 `TASK_PLANNER` -> specialist -> validator -> formatter -> `RUN_LOGGER`), and
 its own single Edge Function (`orchestrate-task`). A repo audit (see
-`apps/prompt-orchestration-platform/docs/RECONCILIATION_REPORT.md`)
+`apps/prompt-orchestration-platform/docs/_superseded/RECONCILIATION_REPORT.md`)
 confirmed this spec has zero cross-references to EAS in either direction and
 was written as a genuinely independent product.
 
@@ -118,18 +118,21 @@ schema.
 
 ## Consequences
 
-- `apps/prompt-orchestration-platform/docs/BUILD_SPEC.md` §2's target
-  repository structure (a standalone `supabase/functions/orchestrate-task/`
-  with its own `types.ts`/`schemas.ts`/`openai.ts`/`routing.ts`/etc.) and
-  `DATABASE.md`'s full 11-table `001_init_schema.sql` are **superseded for
-  the orchestration layer** by this ADR. Both documents remain useful as a
-  record of the module registry, prompt contracts, and validation design —
-  they are not being deleted or declared wrong — but neither should be
-  implemented as originally written. A Phase 1 planning pass needs to
-  produce the actual reconciled migration plan (which POP concepts get new
-  tables vs. reuse `ai_agents`/`prompt_modules`/`workflow_definitions`/
+- `apps/prompt-orchestration-platform/docs/_superseded/BUILD_SPEC.md` §2's
+  target repository structure (a standalone
+  `supabase/functions/orchestrate-task/` with its own
+  `types.ts`/`schemas.ts`/`openai.ts`/`routing.ts`/etc.) and
+  `_superseded/DATABASE.md`'s full 11-table `001_init_schema.sql` are
+  **superseded for the orchestration layer** by this ADR. Both documents
+  remain useful as a record of the module registry, prompt contracts, and
+  validation design — they are not being deleted or declared wrong — but
+  neither should be implemented as originally written. A Phase 1 planning
+  pass needs to produce the actual reconciled migration plan (which POP
+  concepts get new tables vs. reuse
+  `ai_agents`/`prompt_modules`/`workflow_definitions`/
   `workflow_instances`/`tasks`/`agent_runs`) before any migration is
-  written — flagged in `IMPLEMENTATION_PLAN.md`, not resolved by this ADR.
+  written — flagged in `_superseded/IMPLEMENTATION_PLAN.md`, not resolved
+  by this ADR.
 - `PROMPT_ENGINE.md`'s strict-Structured-Outputs design (named JSON Schema,
   `strict: true`, three-layer validation) is **not** superseded — it's a
   property of how an individual Agent's prompt is called, orthogonal to

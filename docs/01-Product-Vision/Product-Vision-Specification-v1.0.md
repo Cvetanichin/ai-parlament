@@ -145,7 +145,9 @@ once it appears on donor-facing material), but no longer an open item.
 
 ## 6. Success Metrics
 
-The historical `Parliamentary_AI_Engine_Roadmap.md` defines MVP-level exit
+The historical `Parliamentary_AI_Engine_Roadmap.md` (never actually
+committed to this repo — existed only outside version control) defines
+MVP-level exit
 criteria (governance loop functions end-to-end, veto engine catches
 constraint violations, human gates block correctly) — those remain valid as
 build-verification criteria and are not restated here. This section sets

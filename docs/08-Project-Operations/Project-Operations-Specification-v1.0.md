@@ -13,7 +13,9 @@ existing_asset: FigmaProjects-main (Intelligence Workspace / "Project Progress T
 
 Unlike `docs/08`'s previous blocked state, this spec is grounded in the actual
 Intelligence Workspace codebase — the connected folder — not a description of
-it. Read directly: `supabase/migrations/20260609000001_initial_schema.sql`
+it. Read directly (paths below are relative to that external Intelligence
+Workspace project, not this repo's `supabase/migrations/`):
+`supabase/migrations/20260609000001_initial_schema.sql`
 (the full live schema), `src/lib/types.ts` (the TypeScript mirror of that
 schema), and all four edge functions (`me-agent`, `compliance-agent`,
 `reporting-agent`, `proposal-agent`). What follows is a factual audit, not an
