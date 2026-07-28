@@ -8,6 +8,12 @@ interface AuthState {
   loading: boolean;
   memberships: OrganisationMembership[];
   isPlatformOperator: boolean;
+  // Set when membership loading or organisation bootstrap fails (e.g. a
+  // transient network error). Loading finishes either way, so without this
+  // the app would look permanently stuck on a brand-new user with no
+  // indication of what went wrong or how to recover.
+  membershipError: string | null;
+  retryMembershipLoad: () => void;
   // Role-gating per docs/13-Frontend §3: read once at session start, cached
   // client-side. This is a UX convenience only -- every gated action's real
   // enforcement is the server-side RLS policy / edge function check (§7),
@@ -23,6 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [memberships, setMemberships] = useState<OrganisationMembership[]>([]);
   const [isPlatformOperator, setIsPlatformOperator] = useState(false);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
     setLoading(true);
+    setMembershipError(null);
 
     Promise.all([
       supabase.from("organisation_members").select("organisation_id, role").eq("user_id", userId),
@@ -60,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       if (membershipRes.error) {
         console.error("[auth] failed to load organisation_members:", membershipRes.error.message);
+        setMembershipError(membershipRes.error.message);
       }
       if (profileRes.error) {
         console.error("[auth] failed to load profile:", profileRes.error.message);
@@ -84,6 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: organisationId, error: bootstrapError } = await supabase.rpc("bootstrap_own_organisation");
         if (bootstrapError) {
           console.error("[auth] failed to bootstrap organisation:", bootstrapError.message);
+          if (!active) return;
+          setMembershipError(bootstrapError.message);
         } else if (organisationId) {
           rows = [{ organisation_id: organisationId, role: "owner" }];
         }
@@ -103,7 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, retryToken]);
+
+  const retryMembershipLoad = () => setRetryToken((t) => t + 1);
 
   const hasRole = (organisationId: string, roles: OrganisationRole[]) => {
     if (isPlatformOperator) return true;
@@ -115,7 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, loading, memberships, isPlatformOperator, hasRole, signOut }}>
+    <AuthContext.Provider
+      value={{ session, loading, memberships, isPlatformOperator, membershipError, retryMembershipLoad, hasRole, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

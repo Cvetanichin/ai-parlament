@@ -31,6 +31,45 @@ amends: ../11-Database-Schema/Database-Schema-Specification-v1.0.md §1, ../../s
 >    the calling policy. The decision below (zero-members check as the
 >    security boundary) is unchanged; only its implementation mechanism is.
 
+> **Update, 2026-07-29 (code review finding — superseded again):** a direct
+> review of the PR carrying the above fixes found a third, distinct bug:
+> the two client-side inserts (organisation, then membership) had no
+> protection against two concurrent executions for the *same* user — e.g.
+> opening the app in two tabs right after signup. The zero-members check
+> only blocks inserting into an org someone *else* already owns; nothing
+> stopped this same user's two racing attempts from each generating their
+> own fresh UUID and each successfully creating a brand-new organisation,
+> leaving the user owning two orgs (one permanently orphaned, since
+> `useOrganisation.ts` only ever looks at `memberships[0]`).
+>
+> Fixed (migration 23) by replacing **both** RLS insert policies and the
+> `organisation_has_no_members` function from the update above with a
+> single `SECURITY DEFINER` RPC, `bootstrap_own_organisation()`: it
+> serializes concurrent calls for the same user via a transaction-scoped
+> `pg_advisory_xact_lock` keyed on their user id, re-checks for an existing
+> membership *inside* that lock, and only then creates the organisation and
+> membership row together. It is idempotent (returns the existing org id on
+> a repeat call) and takes no arguments (nothing for a caller to manipulate
+> — `auth.uid()` is read from the JWT context internally). Verified with 5
+> genuinely concurrent `curl` calls for one user: all returned the same
+> organisation id, exactly one row created.
+>
+> **This means `organisations_insert`, `organisation_members_insert`
+> (originally `organisation_members_insert_bootstrap`), and
+> `organisation_has_no_members` — all described as the live mechanism in
+> the "Decision" section and the update above — no longer exist.** They
+> were dropped by migration 23. `apps/grant-studio-web/src/hooks/
+> useAuth.tsx` now calls `supabase.rpc("bootstrap_own_organisation")`
+> instead of doing two separate `.insert()` calls. The "Decision" and
+> "Alternatives" sections below are kept as-written for the historical
+> reasoning (why a zero-members check is the right security boundary at
+> all — that part is still true) but no longer describe the actual
+> mechanism enforcing it; treat this note as the current source of truth
+> for *how* it's enforced today. Migrations 20 and 22 remain in the repo's
+> migration history as applied-and-then-superseded steps — each was
+> individually correct at the time, and are not rewritten or squashed, per
+> this project's convention of not editing already-applied migrations.
+
 # ADR-0014: Self-Serve Organisation Bootstrap on First Sign-Up
 
 ## Context
