@@ -6,7 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 // membership per user becomes real (an organisation switcher would live
 // here).
 export function useOrganisation() {
-  const { memberships, loading } = useAuth();
+  const { memberships, loading, membershipError, retryMembershipLoad } = useAuth();
   const membership = memberships[0] ?? null;
-  return { organisationId: membership?.organisationId ?? null, role: membership?.role ?? null, loading };
+  return {
+    organisationId: membership?.organisationId ?? null,
+    role: membership?.role ?? null,
+    loading,
+    error: membershipError,
+    retry: retryMembershipLoad,
+  };
 }

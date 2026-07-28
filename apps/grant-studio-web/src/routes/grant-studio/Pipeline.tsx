@@ -36,7 +36,7 @@ const STATUS_ORDER: Record<OpportunityStatus, number> = {
 // (donor.pipelineStage replaces the fixture's funder.stage; "linked" is
 // computed from real proposals rows, not a stored field).
 export function Pipeline() {
-  const { organisationId } = useOrganisation();
+  const { organisationId, loading: membershipLoading, error: membershipError, retry: retryMembership } = useOrganisation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -91,7 +91,19 @@ export function Pipeline() {
   }, [opportunities]);
 
   if (!organisationId) {
-    return <div className="text-sm text-muted-foreground">Loading organisation membership…</div>;
+    if (membershipLoading) {
+      return <div className="text-sm text-muted-foreground">Loading organisation membership…</div>;
+    }
+    return (
+      <div className="space-y-2 text-sm">
+        <p className="text-destructive">
+          Couldn't load your organisation{membershipError ? `: ${membershipError}` : "."}
+        </p>
+        <Button size="sm" onClick={retryMembership}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   return (

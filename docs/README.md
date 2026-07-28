@@ -521,3 +521,100 @@ client-side-only gating" NFR calls for. Per-donor-section Workflow
 Instances (§5's fuller model) remain unbuilt, per the scope decision above.
 Grant Studio Web's remaining phases (Logframe, Budget, Compliance/
 Submission, Consortium) are unbuilt.
+
+## Session 7 — cso-playground Recreated After Accidental Deletion; Local Dev Environment; Sign-Up/Forgot-Password
+
+**The `cso-playground` Supabase project (`urhocsijfzkepebsmstx`) was
+accidentally deleted mid-session** — confirmed via `list_projects`
+returning empty for the whole org, not just a paused/hidden state. A
+second, unrelated production project under the same org ("Consultancy
+Dashboard", `jorpfsrvhnelnboupiyx`) was lost at the same time; that
+recovery (Supabase support, backup/PITR options) was handed back to the
+Product Owner to pursue directly — out of scope for this session, and not
+something schema replay can help with (it recovers structure, never data).
+
+**Recreated `cso-playground` from scratch** (new ref `zfadrhpnhejzbpnfizxu`,
+`eu-west-1` per ADR-0006): replayed the base "Intelligence Workspace"
+schema (3 files — `initial_schema`, `fix_rls_performance_and_indexes`,
+`profiles` — previously living only on disk in a separate project, never
+committed to this repo) followed by all 20 of this repo's own migrations,
+then redeployed all 7 real Edge Functions. Confirmed via `list_tables`: 46
+tables, RLS enabled on every one, seed data intact (4 workflow
+definitions, 13 `ai_agents`, 10 `prompt_modules`).
+
+**Full local, Docker-based Supabase dev environment** now actually works
+from this repo alone — previously impossible, since the base Intelligence
+Workspace schema (above) had never been committed here. Installed Docker
+Desktop, ran `supabase start`, and copied the 3 base-schema files into
+`supabase/migrations/` with early (`00000000000001`–`4`) timestamps so
+`supabase start` can build the complete schema without a second project on
+disk. `apps/grant-studio-web/.env.local` (gitignored, takes priority over
+`.env`) points the dev server at the local stack; `.env` still points at
+the hosted project.
+
+**Grant Studio Web's Login page gained sign-up and forgot-password**,
+verified live against both environments (hosted requires email
+confirmation; local doesn't by default).
+
+**Five real bugs found and fixed while actually exercising this live for
+the first time** (the hosted project's email-confirmation requirement had
+silently prevented the self-serve org-bootstrap path from ever running
+end-to-end before now):
+
+1. `indicators_insert`'s RLS policy only checked `project_id`, unlike its
+   sibling `select`/`update`/`delete` policies — silently blocked every
+   pre-award indicator insert (`proposal_id` set, `project_id` null),
+   needed for the upcoming Logframe Studio phase. Fixed (migration 19).
+2. Local Postgres via `supabase start` doesn't replicate the hosted
+   platform's automatic table-privilege grants to
+   `anon`/`authenticated`/`service_role` — every table needed an explicit
+   `GRANT`, added for both local and hosted (migration 21; hosted's was a
+   harmless no-op).
+3. `INSERT ... RETURNING` on a brand-new `organisations` row raised an RLS
+   error rather than silently omitting it, since no `SELECT` policy could
+   see the row yet (its `organisation_members` row didn't exist until the
+   *next* insert) — genuine Postgres RLS behaviour, not a config bug.
+4. A zero-members subquery in `organisation_members_insert_bootstrap`'s
+   `WITH CHECK` queried the very table the policy was defined on, causing
+   Postgres to detect infinite recursion (migration 22 fixed this with a
+   `SECURITY DEFINER` helper — subsequently itself superseded, see next).
+5. **Found via a direct code review of the PR carrying fixes 3–4, not by
+   live testing**: the two client-side inserts (organisation, then
+   membership) had no protection against two concurrent executions for
+   the *same* user — e.g. two tabs open right after signup — each
+   independently passing the zero-members check and each creating their
+   own brand-new organisation. Fixed (migration 23) by replacing both RLS
+   insert policies and the zero-members helper with one atomic,
+   `SECURITY DEFINER` RPC (`bootstrap_own_organisation`) that serializes
+   concurrent calls per-user via a transaction-scoped advisory lock.
+   Verified with 5 genuinely concurrent `curl` calls for one user: all
+   returned the same organisation id, exactly one row created. See
+   ADR-0014's 2026-07-29 update for the full account — this is now the
+   *third* revision of that ADR's actual mechanism, each superseding the
+   last as real bugs were found; the underlying decision (a zero-members
+   check is the correct security boundary) never changed, only how it's
+   enforced.
+
+Also found and fixed in the same pass: a wrong local auth redirect port
+(`supabase/config.toml`'s `site_url` was `127.0.0.1:3000`; the actual Vite
+dev server runs on `5173`) — confirmed via Mailpit that a real local
+password-reset email now carries the correct `redirect_to`.
+
+**Two merge-order mishaps this session, both caught and recovered, not
+silently left broken:** PR #14 was merged by its author while it still
+only contained its first of two commits — the second commit (the actual
+fixes for bugs 3–4 above) was pushed to the branch *after* the merge
+already happened, so it never reached `main` until this was noticed (the
+files visibly reverting to their pre-fix state was the tell) and the
+orphaned commit was cherry-picked onto a fresh branch and shipped as PR
+#15. This is the same class of mistake flagged once already this project
+(see the PR-hygiene note, Session 6) — worth being extra vigilant about
+push-then-immediately-verify-merge-state going forward, on both sides.
+
+**Still outstanding, on the Product Owner's side, not this session's to
+resolve:** `ANTHROPIC_API_KEY` (and `OPENAI_API_KEY` if embeddings are
+needed) must be set as secrets on the new `cso-playground` project before
+any AI-agent feature works again — nothing in this repo ever stores those
+values, by design, so they don't survive a project recreation. The real
+"Consultancy Dashboard" production-data-loss question, flagged above,
+remains open.
