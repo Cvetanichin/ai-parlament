@@ -31,7 +31,15 @@ export function Login() {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) setError(signInError.message);
     } else if (mode === "sign-up") {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+      // Explicit redirect rather than relying on the project's configured
+      // Site URL default — that default drifts per-environment (it was
+      // wrong for local dev before this fix) and window.location.origin is
+      // always correct for wherever this app is actually running.
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
       if (signUpError) {
         setError(signUpError.message);
       } else if (data.session) {
@@ -43,7 +51,9 @@ export function Login() {
         setMode("sign-in");
       }
     } else {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
       if (resetError) {
         setError(resetError.message);
       } else {
