@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Promise.all([
       supabase.from("organisation_members").select("organisation_id, role").eq("user_id", userId),
       supabase.from("profiles").select("is_platform_operator").eq("id", userId).single(),
-    ]).then(([membershipRes, profileRes]) => {
+    ]).then(async ([membershipRes, profileRes]) => {
       if (!active) return;
       if (membershipRes.error) {
         console.error("[auth] failed to load organisation_members:", membershipRes.error.message);
@@ -64,8 +64,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileRes.error) {
         console.error("[auth] failed to load profile:", profileRes.error.message);
       }
+
+      let rows = membershipRes.data ?? [];
+
+      // ADR-0014: a brand-new signup has zero organisation_members rows —
+      // migration 01's backfill only ever covered pre-existing users, and
+      // there's no other onboarding flow yet. Bootstrap their own
+      // organisation once, here, rather than leaving them stuck with a
+      // permanently empty app.
+      if (rows.length === 0 && !membershipRes.error) {
+        const email = session?.user?.email ?? userId;
+        // Generate the id client-side rather than reading it back via
+        // `.select()` — organisations_select requires an organisation_members
+        // row to already exist for this org, which isn't true yet at the
+        // moment of this insert. Postgres raises an RLS error on
+        // INSERT ... RETURNING when the new row isn't visible under any
+        // SELECT policy, rather than silently omitting it, so a read-back
+        // here would always fail for a brand-new organisation.
+        const organisationId = crypto.randomUUID();
+        const { error: orgError } = await supabase
+          .from("organisations")
+          .insert({ id: organisationId, name: `${email}'s Organisation` });
+        if (orgError) {
+          console.error("[auth] failed to bootstrap organisation:", orgError.message);
+        } else {
+          const { error: memberError } = await supabase
+            .from("organisation_members")
+            .insert({ organisation_id: organisationId, user_id: userId, role: "owner" });
+          if (memberError) {
+            console.error("[auth] failed to bootstrap organisation_members:", memberError.message);
+          } else {
+            rows = [{ organisation_id: organisationId, role: "owner" }];
+          }
+        }
+      }
+
+      if (!active) return;
       setMemberships(
-        (membershipRes.data ?? []).map((row) => ({
+        rows.map((row) => ({
           organisationId: row.organisation_id,
           role: row.role as OrganisationRole,
         })),
