@@ -71,31 +71,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // migration 01's backfill only ever covered pre-existing users, and
       // there's no other onboarding flow yet. Bootstrap their own
       // organisation once, here, rather than leaving them stuck with a
-      // permanently empty app.
+      // permanently empty app. This goes through a single atomic RPC
+      // (migration 23) rather than two separate client-side inserts —
+      // two tabs racing this same effect concurrently would otherwise each
+      // create their own organisation for the same user, since nothing
+      // stops a user from creating a *second* brand-new org for
+      // themselves (only inserting into someone else's org is blocked).
+      // The RPC serializes concurrent calls per-user via an advisory lock
+      // and is idempotent: it returns the existing org id if one already
+      // exists by the time it runs.
       if (rows.length === 0 && !membershipRes.error) {
-        const email = session?.user?.email ?? userId;
-        // Generate the id client-side rather than reading it back via
-        // `.select()` — organisations_select requires an organisation_members
-        // row to already exist for this org, which isn't true yet at the
-        // moment of this insert. Postgres raises an RLS error on
-        // INSERT ... RETURNING when the new row isn't visible under any
-        // SELECT policy, rather than silently omitting it, so a read-back
-        // here would always fail for a brand-new organisation.
-        const organisationId = crypto.randomUUID();
-        const { error: orgError } = await supabase
-          .from("organisations")
-          .insert({ id: organisationId, name: `${email}'s Organisation` });
-        if (orgError) {
-          console.error("[auth] failed to bootstrap organisation:", orgError.message);
-        } else {
-          const { error: memberError } = await supabase
-            .from("organisation_members")
-            .insert({ organisation_id: organisationId, user_id: userId, role: "owner" });
-          if (memberError) {
-            console.error("[auth] failed to bootstrap organisation_members:", memberError.message);
-          } else {
-            rows = [{ organisation_id: organisationId, role: "owner" }];
-          }
+        const { data: organisationId, error: bootstrapError } = await supabase.rpc("bootstrap_own_organisation");
+        if (bootstrapError) {
+          console.error("[auth] failed to bootstrap organisation:", bootstrapError.message);
+        } else if (organisationId) {
+          rows = [{ organisation_id: organisationId, role: "owner" }];
         }
       }
 
