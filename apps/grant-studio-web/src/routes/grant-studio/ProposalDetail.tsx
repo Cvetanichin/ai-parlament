@@ -157,9 +157,14 @@ export function ProposalDetail() {
             <Badge variant="outline">{proposal.status}</Badge>
           </div>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link to={`/grant-studio/proposals/${proposalId}/logframe`}>Logframe</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/grant-studio/proposals/${proposalId}/logframe`}>Logframe</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/grant-studio/proposals/${proposalId}/budget`}>Budget</Link>
+          </Button>
+        </div>
       </header>
 
       <Card>
