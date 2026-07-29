@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -147,14 +147,19 @@ export function ProposalDetail() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">{proposal.opportunity.title}</h1>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-          <span>{proposal.opportunity.donorName ?? "No donor on file"} · Stage:</span>
-          <Badge variant="outline">{proposal.stage.replace("_", " ")}</Badge>
-          <span>· Status:</span>
-          <Badge variant="outline">{proposal.status}</Badge>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">{proposal.opportunity.title}</h1>
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span>{proposal.opportunity.donorName ?? "No donor on file"} · Stage:</span>
+            <Badge variant="outline">{proposal.stage.replace("_", " ")}</Badge>
+            <span>· Status:</span>
+            <Badge variant="outline">{proposal.status}</Badge>
+          </div>
         </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to={`/grant-studio/proposals/${proposalId}/logframe`}>Logframe</Link>
+        </Button>
       </header>
 
       <Card>
