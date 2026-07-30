@@ -3,6 +3,7 @@
 .env
 .env.local
 *.local
+*.local.disabled
 node_modules
 dist
 *.tsbuildinfo
