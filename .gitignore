@@ -7,3 +7,7 @@
 node_modules
 dist
 *.tsbuildinfo
+
+# Google Drive sync-queue artifact, not project content (thousands of
+# untracked files at repo root, ~140MB) -- never meant to be committed.
+.tmp.driveupload
