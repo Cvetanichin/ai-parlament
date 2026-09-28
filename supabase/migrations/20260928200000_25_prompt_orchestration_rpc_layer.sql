@@ -121,6 +121,7 @@ as $$
   from public.context_assets as c
   where c.active
     and (cardinality(c.domain) = 0
+      or 'general' = any(c.domain)
       or (p_domain is not null and p_domain = any(c.domain)))
 $$;
 
