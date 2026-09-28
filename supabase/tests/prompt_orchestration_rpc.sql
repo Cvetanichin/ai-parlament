@@ -35,7 +35,7 @@ begin
   select id into workflow_id from public.workflow_definitions
     where name = 'Prompt Orchestration - M&E Framework' and version = 1;
   bundle := public.rpc_get_workflow_bundle(workflow_id);
-  if jsonb_array_length(bundle -> 'steps') <> 10 then
+  if jsonb_array_length(bundle -> 'steps') <> 11 then
     raise exception 'M&E transition count or JSONB expansion changed';
   end if;
   if bundle -> 'steps' -> 0 ->> 'step_order' <> '1'
