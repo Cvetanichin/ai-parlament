@@ -41,7 +41,7 @@ No RPC accepts an organisation ID from the request body.
 | --- | --- | --- |
 | `rpc_get_workflow_bundle` | `p_workflow_definition_id uuid` | One JSON object with `workflow` and an ordered `steps` array, or null for an unknown ID. Workflow includes `vote_of_no_confidence_threshold`. |
 | `rpc_get_prompt_module_by_key` | `p_agent_slug text` | One JSON object with `agent_id`, `prompt_module_id`, `model_provider`, `model_name`, `strict_output_enabled`, and `output_schema_json`, or null if there is no active prompt. |
-| `rpc_get_context_assets_for_domain` | `p_domain text` | A JSON array of active assets matching the domain or the global empty-domain array, ordered by name and ID. The caller selects Global Control by name. |
+| `rpc_get_context_assets_for_domain` | `p_domain text` | A JSON array of active assets matching the domain, the seeded `general` domain, or the global empty-domain array, ordered by name and ID. The caller selects Global Control by name. |
 | `rpc_get_active_routing_rules` | None | A JSON array of active rule objects ordered by priority and ID, including override IDs for later wiring. |
 
 A missing active prompt is an error for registered production agents; the
