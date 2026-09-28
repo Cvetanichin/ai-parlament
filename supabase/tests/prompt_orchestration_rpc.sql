@@ -64,6 +64,18 @@ begin
   ) then
     raise exception 'Global Control is absent from global context';
   end if;
-end $$;
+end $;
+
+set local role service_role;
+do $
+begin
+  if jsonb_array_length(public.rpc_get_active_routing_rules()) <> 3
+    or (select count(*) from public.v_workflow_steps_expanded) <> 13
+    or public.rpc_get_context_assets_for_domain(null) -> 0 ->> 'name' <> 'Global Control'
+  then
+    raise exception 'Service-role helper contract failed';
+  end if;
+end $;
+reset role;
 
 rollback;
