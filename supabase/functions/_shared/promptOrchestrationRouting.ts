@@ -34,12 +34,15 @@ export async function resolveWorkflowForRequest(
   supabase: SupabaseClient,
   classification: Record<string, unknown>,
 ): Promise<ResolvedWorkflow | null> {
-  const { data: rules, error } = await supabase
-    .from("routing_rules")
-    .select("id, rule_name, priority, match_logic_json, selected_workflow_definition_id")
-    .eq("active", true)
-    .order("priority", { ascending: true });
+  const { data, error } = await supabase.rpc("rpc_get_active_routing_rules");
   if (error) throw error;
+  const rules = data as Array<{
+    id: string;
+    rule_name: string;
+    priority: number;
+    match_logic_json: FieldEqualsMatch;
+    selected_workflow_definition_id: string;
+  }> | null;
 
   for (const rule of rules ?? []) {
     if (evaluateMatch(rule.match_logic_json as FieldEqualsMatch, classification)) {
