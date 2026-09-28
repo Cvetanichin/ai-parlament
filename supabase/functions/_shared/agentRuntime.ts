@@ -105,23 +105,25 @@ export async function ensureActivePromptVersion(
 export async function invokeAgent(params: InvokeAgentParams): Promise<InvokeAgentResult> {
   const { supabase, agentSlug, projectId, organisationId, input } = params;
 
-  const { data: agent, error: agentErr } = await supabase
-    .from("ai_agents")
-    .select("id")
-    .eq("slug", agentSlug)
-    .single();
-  if (agentErr || !agent) throw new Error(`Agent not registered: ${agentSlug}`);
+  const { data, error: promptErr } = await supabase.rpc(
+    "rpc_get_prompt_module_by_key",
+    { p_agent_slug: agentSlug },
+  );
+  if (promptErr) throw promptErr;
+  const version = data as {
+    agent_id: string;
+    prompt_module_id: string;
+    model_provider: string;
+    model_name: string;
+    strict_output_enabled: boolean;
+    output_schema_json: unknown;
+  } | null;
+  if (!version) throw new Error(`No active prompt module for agent: ${agentSlug}`);
 
-  const { data: version } = await supabase
-    .from("prompt_modules")
-    .select("id, model_provider, model_name, strict_output_enabled, output_schema_json")
-    .eq("agent_id", agent.id)
-    .eq("status", "active")
-    .maybeSingle();
-
-  const binding: ModelBinding = version
-    ? { provider: version.model_provider as ModelBinding["provider"], model: version.model_name }
-    : { provider: "mock", model: "mock" };
+  const binding: ModelBinding = {
+    provider: version.model_provider as ModelBinding["provider"],
+    model: version.model_name,
+  };
 
   const prompt = params.buildPrompt(input);
 
@@ -164,8 +166,8 @@ export async function invokeAgent(params: InvokeAgentParams): Promise<InvokeAgen
     .insert({
       project_id: projectId,
       organisation_id: organisationId,
-      agent_id: agent.id,
-      prompt_module_id: version?.id ?? null,
+      agent_id: version.agent_id,
+      prompt_module_id: version.prompt_module_id,
       status: "completed",
       input_data: input,
       output_data: typeof output === "string" ? { text: output } : output,
@@ -181,7 +183,7 @@ export async function invokeAgent(params: InvokeAgentParams): Promise<InvokeAgen
     agentRunId: run.id,
     output,
     raw,
-    promptModuleId: version?.id ?? null,
+    promptModuleId: version.prompt_module_id,
     usedProvider,
     tokenCost,
     latencyMs,
