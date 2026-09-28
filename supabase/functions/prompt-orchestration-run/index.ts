@@ -105,14 +105,12 @@ Deno.serve(withCors(async (req: Request) => {
     // GLOBAL_CONTROL — fetched once per run, prepended to every downstream
     // prompt this function builds (PHASE1_RESCOPING.md §5.1), not once per
     // agent call.
-    const { data: globalControlRow, error: globalControlErr } = await admin
-      .from("context_assets")
-      .select("content")
-      .eq("name", "Global Control")
-      .eq("active", true)
-      .maybeSingle();
-    if (globalControlErr) throw globalControlErr;
-    const globalControl = globalControlRow?.content ?? "";
+    const { data: contextData, error: contextErr } = await admin
+      .rpc("rpc_get_context_assets_for_domain", { p_domain: null });
+    if (contextErr) throw contextErr;
+    const contextAssets = contextData as Array<{ name: string; content: string | null }> | null;
+    const globalControl = contextAssets?.find((asset) => asset.name === "Global Control")?.content;
+    if (!globalControl) throw new Error("Global Control context asset is missing");
 
     // 1. intake_normalizer — strict Structured Output (ADR-0012).
     const intakeResult = await invokeAgent({
@@ -156,12 +154,15 @@ Deno.serve(withCors(async (req: Request) => {
       );
     }
 
-    const { data: workflowDef, error: workflowDefErr } = await admin
-      .from("workflow_definitions")
-      .select("vote_of_no_confidence_threshold")
-      .eq("id", resolved.workflowDefinitionId)
-      .single();
-    if (workflowDefErr) throw workflowDefErr;
+    const { data: workflowBundle, error: workflowErr } = await admin
+      .rpc("rpc_get_workflow_bundle", {
+        p_workflow_definition_id: resolved.workflowDefinitionId,
+      });
+    if (workflowErr) throw workflowErr;
+    const workflowDef = (workflowBundle as {
+      workflow: { vote_of_no_confidence_threshold: number };
+    } | null)?.workflow;
+    if (!workflowDef) throw new Error("Routed workflow definition is missing");
 
     // No pre-existing target entity for a Prompt Orchestration run (unlike
     // Grant Studio's Proposal/Report) — target_id has no foreign key
