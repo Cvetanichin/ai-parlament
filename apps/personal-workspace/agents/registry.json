@@ -1,0 +1,58 @@
+[
+  {
+    "id": "writer",
+    "name": "Creative Writing Agent",
+    "description": "Blog posts, long reads and social updates from a topic, tone and style guide.",
+    "prompt": "writer.md",
+    "fields": [
+      { "key": "format", "label": "Format", "type": "select", "options": ["Blog post (600-900 words)", "Long read (1,800-2,500 words)", "Social set (LinkedIn post + 3 short posts)", "Newsletter intro (200-300 words)"], "default": "Blog post (600-900 words)" },
+      { "key": "topic", "label": "Topic and angle", "type": "textarea", "placeholder": "What is it about, and what is the one thing the reader should take away?" },
+      { "key": "audience", "label": "Audience", "type": "text", "placeholder": "e.g. programme officers at EU-funded CSOs" },
+      { "key": "tone", "label": "Tone", "type": "select", "options": ["Strategic minimalist", "Warm and personal", "Analytical", "Provocative", "Plain and practical"], "default": "Strategic minimalist" },
+      { "key": "style", "label": "Style guide / voice notes", "type": "textarea", "placeholder": "Paste house style, sample paragraph, banned phrases, must-use terms (optional)" },
+      { "key": "material", "label": "Source material and facts you want used", "type": "textarea", "placeholder": "Notes, quotes, data you have verified (optional). The agent will not invent facts." }
+    ],
+    "template": "FORMAT: {{format}}\nTOPIC AND ANGLE: {{topic}}\nAUDIENCE: {{audience}}\nTONE: {{tone}}\nSTYLE GUIDE: {{style}}\nSOURCE MATERIAL: {{material}}"
+  },
+  {
+    "id": "researcher",
+    "name": "Research and Analysis Agent",
+    "description": "Structured briefs with evidence grading, a source register and explicit gaps.",
+    "prompt": "researcher.md",
+    "fields": [
+      { "key": "question", "label": "Research question", "type": "textarea", "placeholder": "State the decision this research should inform." },
+      { "key": "scope", "label": "Scope and constraints", "type": "textarea", "placeholder": "Geography, period, sectors, what is out of scope (optional)" },
+      { "key": "depth", "label": "Output", "type": "select", "options": ["One-page brief", "Full brief with data table", "Research plan only (what to look for, where)"], "default": "One-page brief" },
+      { "key": "sources", "label": "Sources and data you have (paste text, links, figures)", "type": "textarea", "placeholder": "The agent cites only what you paste here or labels the claim as unverified training knowledge." }
+    ],
+    "template": "RESEARCH QUESTION: {{question}}\nSCOPE AND CONSTRAINTS: {{scope}}\nOUTPUT: {{depth}}\nSOURCES PROVIDED BY USER:\n{{sources}}"
+  },
+  {
+    "id": "drafter",
+    "name": "Project Drafting Agent",
+    "description": "Turns an idea into a structured outline, work plan and first-fortnight tasks.",
+    "prompt": "project-drafter.md",
+    "emitsTasks": true,
+    "fields": [
+      { "key": "template", "label": "Template", "type": "select", "options": ["Generic project", "Donor-funded programme (logframe)", "Product MVP", "Consulting engagement", "Event or campaign"], "default": "Generic project" },
+      { "key": "idea", "label": "Project idea and objective", "type": "textarea", "placeholder": "What should be different when this succeeds, and for whom?" },
+      { "key": "start", "label": "Start date", "type": "text", "placeholder": "YYYY-MM-DD" },
+      { "key": "end", "label": "Hard end date or deadline", "type": "text", "placeholder": "YYYY-MM-DD (optional)" },
+      { "key": "constraints", "label": "Budget, team, constraints", "type": "textarea", "placeholder": "Optional" }
+    ],
+    "template": "TEMPLATE: {{template}}\nIDEA AND OBJECTIVE: {{idea}}\nSTART DATE: {{start}}\nEND DATE: {{end}}\nCONSTRAINTS: {{constraints}}"
+  },
+  {
+    "id": "deadlines",
+    "name": "Deadline Tracking Agent",
+    "description": "Prioritises open work against capacity, flags conflicts and proposes date changes you can apply.",
+    "prompt": "deadline-tracker.md",
+    "emitsUpdates": true,
+    "includeContext": true,
+    "fields": [
+      { "key": "focus", "label": "What do you need?", "type": "select", "options": ["Replan my next 7 days", "Find conflicts and overload", "Draft messages to renegotiate deadlines", "Weekly review"], "default": "Replan my next 7 days" },
+      { "key": "notes", "label": "Constraints this period", "type": "textarea", "placeholder": "Travel, leave, fixed meetings, energy levels (optional)" }
+    ],
+    "template": "REQUEST: {{focus}}\nCONSTRAINTS THIS PERIOD: {{notes}}"
+  }
+]
