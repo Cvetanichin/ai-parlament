@@ -29,7 +29,7 @@ const assert = require('assert');
 
   // agent with mocked API
   await page.goto(page.url().split('#')[0] + '#/settings');
-  await page.fill('input[type=password]', 'sk-test');
+  await page.fill('input[type=password]', 'k');
   await page.goto(page.url().split('#')[0] + '#/agents/drafter');
   await page.fill('#f-idea', 'Launch a pilot');
   await page.click('button:has-text("Run agent")');
