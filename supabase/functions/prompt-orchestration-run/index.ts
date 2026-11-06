@@ -58,28 +58,28 @@ interface DomainWorkflow {
 const DOMAIN_WORKFLOWS: Record<string, DomainWorkflow> = {
   monitoring_and_evaluation: {
     specialistAgentSlug: "specialist_me_framework",
-    buildSpecialistPrompt: (input) => specialistMeFramework.buildPrompt(input as specialistMeFramework.SpecialistMeFrameworkInput),
-    mockSpecialistRun: (input) => specialistMeFramework.mockRun(input as specialistMeFramework.SpecialistMeFrameworkInput),
+    buildSpecialistPrompt: (input) => specialistMeFramework.buildPrompt(input as unknown as specialistMeFramework.SpecialistMeFrameworkInput),
+    mockSpecialistRun: (input) => specialistMeFramework.mockRun(input as unknown as specialistMeFramework.SpecialistMeFrameworkInput),
     validator: {
       agentSlug: "validator_indicators",
       constraints: { minLength: 40 },
       deterministicCheck: validatorIndicators.deterministicCheck,
       lexicalCheck: validatorIndicators.lexicalCheck,
-      buildSemanticPrompt: (input) => validatorIndicators.buildSemanticPrompt(input as validatorIndicators.ValidatorIndicatorsSemanticInput),
-      mockSemanticRun: (input) => validatorIndicators.mockSemanticRun(input as validatorIndicators.ValidatorIndicatorsSemanticInput),
+      buildSemanticPrompt: (input) => validatorIndicators.buildSemanticPrompt(input as unknown as validatorIndicators.ValidatorIndicatorsSemanticInput),
+      mockSemanticRun: (input) => validatorIndicators.mockSemanticRun(input as unknown as validatorIndicators.ValidatorIndicatorsSemanticInput),
       parseSemanticVerdict: validatorIndicators.parseSemanticVerdict,
     },
   },
   product_and_mvp: {
     specialistAgentSlug: "specialist_product_mvp",
-    buildSpecialistPrompt: (input) => specialistProductMvp.buildPrompt(input as specialistProductMvp.SpecialistProductMvpInput),
-    mockSpecialistRun: (input) => specialistProductMvp.mockRun(input as specialistProductMvp.SpecialistProductMvpInput),
+    buildSpecialistPrompt: (input) => specialistProductMvp.buildPrompt(input as unknown as specialistProductMvp.SpecialistProductMvpInput),
+    mockSpecialistRun: (input) => specialistProductMvp.mockRun(input as unknown as specialistProductMvp.SpecialistProductMvpInput),
     // No validator seeded yet for this workflow — migration 18's note.
   },
   prompt_engineering: {
     specialistAgentSlug: "specialist_prompt_engineering",
-    buildSpecialistPrompt: (input) => specialistPromptEngineering.buildPrompt(input as specialistPromptEngineering.SpecialistPromptEngineeringInput),
-    mockSpecialistRun: (input) => specialistPromptEngineering.mockRun(input as specialistPromptEngineering.SpecialistPromptEngineeringInput),
+    buildSpecialistPrompt: (input) => specialistPromptEngineering.buildPrompt(input as unknown as specialistPromptEngineering.SpecialistPromptEngineeringInput),
+    mockSpecialistRun: (input) => specialistPromptEngineering.mockRun(input as unknown as specialistPromptEngineering.SpecialistPromptEngineeringInput),
     // No validator seeded yet for this workflow — migration 18's note.
   },
 };
@@ -119,8 +119,8 @@ Deno.serve(withCors(async (req: Request) => {
       projectId,
       organisationId: caller.organisationId,
       input: { globalControl, userInput },
-      buildPrompt: (input) => intakeNormalizer.buildPrompt(input as intakeNormalizer.IntakeNormalizerInput),
-      mockStructured: (input) => intakeNormalizer.mockStructured(input as intakeNormalizer.IntakeNormalizerInput),
+      buildPrompt: (input) => intakeNormalizer.buildPrompt(input as unknown as intakeNormalizer.IntakeNormalizerInput),
+      mockStructured: (input) => intakeNormalizer.mockStructured(input as unknown as intakeNormalizer.IntakeNormalizerInput) as unknown as Record<string, unknown>,
     });
     const normalizedInput = intakeResult.output as Record<string, unknown>;
 
@@ -131,8 +131,8 @@ Deno.serve(withCors(async (req: Request) => {
       projectId,
       organisationId: caller.organisationId,
       input: { globalControl, normalizedInput },
-      buildPrompt: (input) => intentClassifier.buildPrompt(input as intentClassifier.IntentClassifierInput),
-      mockStructured: (input) => intentClassifier.mockStructured(input as intentClassifier.IntentClassifierInput),
+      buildPrompt: (input) => intentClassifier.buildPrompt(input as unknown as intentClassifier.IntentClassifierInput),
+      mockStructured: (input) => intentClassifier.mockStructured(input as unknown as intentClassifier.IntentClassifierInput) as unknown as Record<string, unknown>,
     });
     const classification = classifierResult.output as Record<string, unknown>;
     const domain = String(classification.domain ?? "");
@@ -193,8 +193,8 @@ Deno.serve(withCors(async (req: Request) => {
       mockSpecialistRun: workflow.mockSpecialistRun,
       validator: workflow.validator,
       formatterAgentSlug: "formatter_table_first",
-      buildFormatterPrompt: (input) => formatterTableFirst.buildPrompt(input as formatterTableFirst.FormatterTableFirstInput),
-      mockFormatterRun: (input) => formatterTableFirst.mockRun(input as formatterTableFirst.FormatterTableFirstInput),
+      buildFormatterPrompt: (input) => formatterTableFirst.buildPrompt(input as unknown as formatterTableFirst.FormatterTableFirstInput),
+      mockFormatterRun: (input) => formatterTableFirst.mockRun(input as unknown as formatterTableFirst.FormatterTableFirstInput),
       voteOfNoConfidenceThreshold: workflowDef.vote_of_no_confidence_threshold,
     });
 
