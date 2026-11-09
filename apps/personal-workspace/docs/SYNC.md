@@ -51,7 +51,7 @@ You need a Supabase project. The app works with any project that has migration 2
 4. **Check Auth settings**: Authentication, Providers, Email must be enabled. If "Confirm email" is on, new accounts must click the link in their email before the first sign-in.
 5. In the app: Settings, Sync and account. Enter the URL and key, then Sign in or Create account. The first sync starts at once.
 
-The repository's `.mcp.json` connects the Supabase tools read-only, so the migration cannot be applied from a coding session; step 1 is yours to run.
+The repository's `.mcp.json` connects the Supabase tools read-only, so a coding session cannot apply it through that connection. For `cso-playground` it was applied on 2026-11-09 (section 6); for any other project, step 1 is yours to run.
 
 ## 4. Security
 
@@ -85,7 +85,13 @@ The workspace calls only the project URL you enter. It accepts `https://` URLs, 
 | `supabase/tests/personal_workspace_sync.sql` | Privileges, isolation, last-write-wins, tombstones, cursor, validation limits | `psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/personal_workspace_sync.sql` |
 | `apps/personal-workspace/tests/sync.cjs` | Three browsers against an in-memory fake of Auth and PostgREST: convergence, deletes, conflicts in both directions, offline queue, token refresh, 401 retry, automatic sync, account isolation, no secrets sent | `NODE_PATH=$(npm root -g) node tests/sync.cjs` |
 
-Verification status at release: the SQL ran and passed on PGlite (Postgres in WebAssembly) with stand-ins for the Supabase roles and `auth` schema, and was shown to fail when the last-write-wins guard, RLS, the anon revoke or tombstone clearing were removed. The browser test passes and was shown to fail when the newer-wins rule or the first-sync rule was removed. **Neither has been run against a real Supabase project**: the migration has not been applied and no real sign-in has been made. Do that once (section 3) and sign in on two browsers before relying on it.
+Verification status:
+
+- **Local:** the SQL ran and passed on PGlite (Postgres in WebAssembly) with stand-ins for the Supabase roles and `auth` schema, and was shown to fail when the last-write-wins guard, RLS, the anon revoke or tombstone clearing were removed. The browser test passes and was shown to fail when the newer-wins rule or the first-sync rule was removed.
+- **Applied (2026-11-09):** migration 26 was applied to the `cso-playground` project (`zfadrhpnhejzbpnfizxu`) as `26_personal_workspace_sync`. Checked afterwards: RLS on, four policies all for `authenticated`, `anon` has no table privilege and cannot call the RPC, the trigger is enabled, both functions are `SECURITY INVOKER` with an empty search path. `supabase/tests/personal_workspace_sync.sql` passed on that database inside a rolled-back transaction, and a follow-up query confirmed it left no users, profiles or rows behind. The security advisor reported nothing about the new objects.
+- **Not yet done:** a real sign-in and a real sync between two browsers against that project. The browser test uses a fake backend, so this is the first end-to-end check of the client against real Supabase Auth and PostgREST. Do it once before relying on sync.
+
+The migration was applied through the Supabase tooling, so the remote history records its own timestamp (`20261109110904`) rather than the file's (`20261109120000`), as with earlier migrations in this repository.
 
 ## 7. Roadmap
 
