@@ -64,6 +64,7 @@ See `AGENTS.md` for tuning prompts and adding your own.
 - Synced: tasks, projects, documents and their history, calendar events, agent run history, custom agents, display settings. Not synced: your Anthropic API key and sign-in tokens.
 - It syncs a few seconds after each change, when you return to the page and when you reconnect. The line under the menu shows the state and any pending changes.
 - If two devices change the same record, the later edit wins as a whole. For documents, let one device sync before editing on another.
+- A new account's password needs at least 10 characters and is checked against known breaches before the account is created. Only the first 5 characters of a hash of the password are sent, never the password.
 - Sign out keeps your data on the device. Delete cloud data removes the cloud copy only and switches automatic sync off.
 - Records are stored unencrypted in your project. Do not sync client-confidential material unless that is acceptable.
 

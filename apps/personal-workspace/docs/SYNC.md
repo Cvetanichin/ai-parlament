@@ -61,6 +61,7 @@ The repository's `.mcp.json` connects the Supabase tools read-only, so a coding 
 | Forged or spoofed metadata | `server_updated_at` and `user_id` are set or fixed by a trigger; the client cannot choose them |
 | Stale device overwriting newer work | Last-write-wins guard inside `workspace_push` |
 | Abuse and runaway clients | Allowed kinds, id pattern, 2 MiB per record, 500 items per call, 50,000 rows per user; unauthenticated calls refused; execute revoked from `anon` |
+| Weak or breached passwords | Supabase's leaked-password protection needs a paid plan. On any plan, creating an account in the app requires 10 or more characters and is checked against the HaveIBeenPwned breach list (only the first 5 characters of the password's SHA-1 hash are sent; if the check cannot run, sign-up continues with a notice). This is advisory and cannot stop someone who calls the Auth API directly, so also set a minimum password length in the project's Email auth settings |
 | Secrets in sync | The API key and tokens are excluded from synced data and from backups; a test scans everything the server received |
 | Token theft | Tokens are kept in this browser's IndexedDB like the API key. Anyone with access to the browser profile can use them. Sign out on shared computers |
 | Cloud copy readable by project admins | **Records are stored in plain text.** Anyone with admin or service-role access to the project can read them. Do not sync client-confidential material unless that is acceptable under your agreements. End-to-end encryption is the planned next step (section 7) |

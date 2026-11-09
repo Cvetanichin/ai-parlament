@@ -1037,12 +1037,35 @@ async function syncRun(manual) {
   }
 }
 
+/* New passwords are checked against known breaches with the HaveIBeenPwned range API. Only the first 5 characters of the
+   password's SHA-1 hash leave the device (k-anonymity); the matching happens here. This stands in for Supabase's leaked-password
+   protection, which needs a paid plan. It is advisory: it cannot stop someone who calls the Auth API directly. */
+async function pwnedCount(password) {
+  const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(password));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+  const r = await netFetch("https://api.pwnedpasswords.com/range/" + hex.slice(0, 5), { headers: { "Add-Padding": "true" } });
+  if (!r.ok) throw new Error(`Breach check returned HTTP ${r.status}`);
+  for (const line of (await r.text()).split("\n")) { const [suffix, n] = line.trim().split(":"); if (suffix === hex.slice(5)) return Number(n) || 0; } // padded decoys have count 0
+  return 0;
+}
+async function checkNewPassword(password) {
+  if (password.length < 10) throw new Error("Use at least 10 characters for a new password.");
+  try {
+    const n = await pwnedCount(password);
+    if (n > 0) throw Object.assign(new Error(`That password appears in ${n.toLocaleString("en-GB")} known data breaches. Choose a different one.`), { breached: true });
+  } catch (e) {
+    if (e.breached) throw e;
+    toast("Could not check the password against known breaches, so it was not checked."); // fail open: a down checker must not block sign-up
+  }
+}
+
 /* account */
 async function syncAuth(mode, email, password) {
   const url = normUrl(S.sync.url);
   if (!url) throw new Error("Enter your Supabase project URL, for example https://abcd.supabase.co");
   if (!S.sync.anonKey.trim()) throw new Error("Enter the project's publishable (anon) key");
   S.sync.url = url;
+  if (mode === "signup") await checkNewPassword(password);
   const j = await syncAuthFetch(mode === "signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password", { email, password });
   if (!j.access_token) return { needsConfirm: true };
   const uid = j.user?.id;
@@ -1079,7 +1102,7 @@ function syncCard() {
       h("label", {}, "Publishable (anon) key"), h("input", { value: sy.anonKey, placeholder: "sb_publishable_... or the anon JWT", autocomplete: "off", oninput: upd((t) => (sy.anonKey = t.value.trim())) }),
       h("label", {}, "Email"), email, h("label", {}, "Password"), pw,
       h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "primary", onclick: act("signin") }, "Sign in"), h("button", { onclick: act("signup") }, "Create account")),
-      h("p", { class: "small muted" }, "Signing in with an existing account on the project works; creating one adds a user to that project."));
+      h("p", { class: "small muted" }, "Signing in with an existing account on the project works; creating one adds a user to that project. New passwords need at least 10 characters and are checked against known breaches: only the first 5 characters of a hash are sent to api.pwnedpasswords.com."));
   }
   return h("section", { class: "card" }, h("h3", {}, "Sync and account"), note,
     h("p", {}, "Signed in as ", h("strong", {}, sy.session.email || "your account")), h("p", { class: "small", id: "sync-status", role: "status" }, syncLabel() + (sync.msg ? `. ${sync.msg}` : "")),

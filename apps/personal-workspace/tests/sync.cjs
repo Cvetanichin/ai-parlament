@@ -4,6 +4,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const assert = require('assert');
+const crypto = require('crypto');
 
 const BASE = 'https://fake.supabase.test';
 const KEY = 'pk-test';
@@ -25,6 +26,15 @@ function session(uid, email, expiresIn) {
 }
 
 async function attach(context, flags) {
+  await context.route('https://api.pwnedpasswords.com/range/*', async (route) => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Add-Padding', 'access-control-allow-methods': 'GET' } });
+    if (flags.pwnedDown) return route.abort('internetdisconnected');
+    pwnedUrls.push(req.url());
+    const prefix = req.url().split('/').pop(), lines = ['0000000000000000000000000000000000A:0'];
+    if (prefix === BREACHED.slice(0, 5)) lines.unshift(`${BREACHED.slice(5)}:48213`);
+    return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'text/plain' }, body: lines.join('\r\n') });
+  });
   await context.route(`${BASE}/**`, async (route) => {
     const req = route.request(), url = new URL(req.url()), h = req.headers();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
@@ -82,6 +92,11 @@ async function attach(context, flags) {
     return send(404, { message: 'not found: ' + p });
   });
 }
+
+/* fake of the HaveIBeenPwned range API: one known-breached password, padded decoys like the real service */
+const sha1 = (s) => crypto.createHash('sha1').update(s).digest('hex').toUpperCase();
+const BREACHED = sha1('password1234');
+const pwnedUrls = [];
 
 /* ---------- helpers ---------- */
 const APP = 'file://' + path.resolve(process.env.APP_FILE || path.join(__dirname, '../index.html'));
@@ -223,6 +238,23 @@ const serverTitles = (uid) => rowsOf(uid).filter((r) => r.kind === 'task' && !r.
   await C.page.waitForSelector('.toast:has-text("Invalid login credentials")');
   assert.strictEqual(await C.page.evaluate(() => !!S.sync.session), false);
   console.log('8 ok: isolation between accounts; bad password rejected');
+
+  /* 8b. new-account password rules: length, known breaches, and failing open when the checker is down */
+  const usersBefore = users.size;
+  await signIn(C, 'weak@example.com', 'short', 'Create account');
+  await C.page.waitForSelector('.toast:has-text("at least 10 characters")');
+  await signIn(C, 'weak@example.com', 'password1234', 'Create account');
+  await C.page.waitForSelector('.toast:has-text("known data breaches")');
+  assert.strictEqual(users.size, usersBefore, 'a rejected password must not create an account');
+  C.flags.pwnedDown = true;
+  await signIn(C, 'open@example.com', 'a-fine-passphrase', 'Create account');
+  await C.page.waitForSelector('.toast:has-text("not checked")');
+  await waitSynced(C);
+  assert.strictEqual(users.size, usersBefore + 1, 'sign-up must continue when the breach checker is unreachable');
+  C.flags.pwnedDown = false;
+  assert(pwnedUrls.length >= 3 && pwnedUrls.every((u) => /\/range\/[0-9A-F]{5}$/.test(u)), 'only a 5-character hash prefix may be sent: ' + pwnedUrls.join(' '));
+  assert(!pwnedUrls.some((u) => /password|fine-passphrase|correct-horse|short/i.test(u.split('/range/')[1])), 'a password leaked into a request path');
+  console.log('8b ok: length rule, breach rule, fail-open; only 5-char prefixes sent');
 
   /* 9. backups carry no sign-in state; sign-out keeps local data; delete-cloud wipes the cloud only */
   const exp = await A.page.evaluate(() => JSON.stringify(exportable()));
