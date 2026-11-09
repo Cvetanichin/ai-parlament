@@ -64,6 +64,7 @@ Record issues as GitHub issues in this repository with: steps, expected, actual,
 - Calendar events and tasks created from them now have deterministic ids, so importing one `.ics` on two devices does not duplicate them.
 - New tests: `tests/sync.cjs` (browser, fake backend) and `supabase/tests/personal_workspace_sync.sql`.
 - Data schema unchanged (1); new `sync` state defaults on load.
+- Migration 26 applied to `cso-playground` on 2026-11-09 and verified there (`SYNC.md`, section 6).
 
 ### 1.0.0 (2026-11-05)
 - Dashboard, tasks, projects, calendar (.ics), Library with versions and search, Insights, Settings.
