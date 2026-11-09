@@ -59,6 +59,9 @@ Record issues as GitHub issues in this repository with: steps, expected, actual,
 
 ## 7. Changelog
 
+### 1.1.1 (2026-11-09)
+- Creating a sync account now requires a 10-character password and checks it against known breaches (HaveIBeenPwned range API, k-anonymity), as a substitute for Supabase's paid leaked-password protection.
+
 ### 1.1.0 (2026-11-09)
 - Optional sign-in and cross-device sync (Supabase): migration 26, `workspace_push` RPC with last-write-wins, per-user row-level security, offline queue, token refresh, delete-cloud-data.
 - Calendar events and tasks created from them now have deterministic ids, so importing one `.ics` on two devices does not duplicate them.
