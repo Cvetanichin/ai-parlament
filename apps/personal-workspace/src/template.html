@@ -1040,13 +1040,19 @@ async function syncRun(manual) {
 /* New passwords are checked against known breaches with the HaveIBeenPwned range API. Only the first 5 characters of the
    password's SHA-1 hash leave the device (k-anonymity); the matching happens here. This stands in for Supabase's leaked-password
    protection, which needs a paid plan. It is advisory: it cannot stop someone who calls the Auth API directly. */
+const PWNED_TIMEOUT_MS = 5000;
 async function pwnedCount(password) {
   const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(password));
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-  const r = await netFetch("https://api.pwnedpasswords.com/range/" + hex.slice(0, 5), { headers: { "Add-Padding": "true" } });
-  if (!r.ok) throw new Error(`Breach check returned HTTP ${r.status}`);
-  for (const line of (await r.text()).split("\n")) { const [suffix, n] = line.trim().split(":"); if (suffix === hex.slice(5)) return Number(n) || 0; } // padded decoys have count 0
-  return 0;
+  // One deadline covers both the request and reading the body, so a stalled service cannot hold sign-up open:
+  // an abort lands in checkNewPassword's catch and sign-up continues with a notice.
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), PWNED_TIMEOUT_MS);
+  try {
+    const r = await netFetch("https://api.pwnedpasswords.com/range/" + hex.slice(0, 5), { headers: { "Add-Padding": "true" }, signal: ctl.signal });
+    if (!r.ok) throw new Error(`Breach check returned HTTP ${r.status}`);
+    for (const line of (await r.text()).split("\n")) { const [suffix, n] = line.trim().split(":"); if (suffix === hex.slice(5)) return Number(n) || 0; } // padded decoys have count 0
+    return 0;
+  } finally { clearTimeout(timer); }
 }
 async function checkNewPassword(password) {
   if (password.length < 10) throw new Error("Use at least 10 characters for a new password.");
