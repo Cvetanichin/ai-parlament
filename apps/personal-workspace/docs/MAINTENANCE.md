@@ -59,6 +59,9 @@ Record issues as GitHub issues in this repository with: steps, expected, actual,
 
 ## 7. Changelog
 
+### 1.1.2 (2026-11-09)
+- The breach check at sign-up now gives up after 5 seconds (covering the request and reading the response), so a stalled service cannot keep "Create account" disabled; sign-up continues with a notice.
+
 ### 1.1.1 (2026-11-09)
 - Creating a sync account now requires a 10-character password and checks it against known breaches (HaveIBeenPwned range API, k-anonymity), as a substitute for Supabase's paid leaked-password protection.
 

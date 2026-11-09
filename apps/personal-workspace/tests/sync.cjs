@@ -30,6 +30,7 @@ async function attach(context, flags) {
     const req = route.request();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Add-Padding', 'access-control-allow-methods': 'GET' } });
     if (flags.pwnedDown) return route.abort('internetdisconnected');
+    if (flags.pwnedStall) { setTimeout(() => route.abort().catch(() => {}), 30000); return; } // accepts the request, never answers
     pwnedUrls.push(req.url());
     const prefix = req.url().split('/').pop(), lines = ['0000000000000000000000000000000000A:0'];
     if (prefix === BREACHED.slice(0, 5)) lines.unshift(`${BREACHED.slice(5)}:48213`);
@@ -255,6 +256,19 @@ const serverTitles = (uid) => rowsOf(uid).filter((r) => r.kind === 'task' && !r.
   assert(pwnedUrls.length >= 3 && pwnedUrls.every((u) => /\/range\/[0-9A-F]{5}$/.test(u)), 'only a 5-character hash prefix may be sent: ' + pwnedUrls.join(' '));
   assert(!pwnedUrls.some((u) => /password|fine-passphrase|correct-horse|short/i.test(u.split('/range/')[1])), 'a password leaked into a request path');
   console.log('8b ok: length rule, breach rule, fail-open; only 5-char prefixes sent');
+
+  /* 8c. a breach checker that never answers must not hold sign-up open */
+  await C.page.evaluate(async () => { await syncSignOut(); render(); });
+  C.flags.pwnedStall = true;
+  const stalledAt = Date.now(), usersBeforeStall = users.size;
+  await signIn(C, 'stall@example.com', 'another-fine-pass', 'Create account');
+  await C.page.waitForSelector('.toast:has-text("not checked")', { timeout: 12000 });
+  await waitSynced(C);
+  const waited = Date.now() - stalledAt;
+  assert(waited < 12000, `sign-up waited ${waited} ms on a stalled checker`);
+  assert.strictEqual(users.size, usersBeforeStall + 1, 'sign-up must continue after the checker times out');
+  C.flags.pwnedStall = false;
+  console.log(`8c ok: stalled breach checker gave up after ~${Math.round(waited / 1000)} s and sign-up continued`);
 
   /* 9. backups carry no sign-in state; sign-out keeps local data; delete-cloud wipes the cloud only */
   const exp = await A.page.evaluate(() => JSON.stringify(exportable()));
