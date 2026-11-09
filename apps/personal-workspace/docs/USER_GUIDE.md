@@ -59,9 +59,17 @@ See `AGENTS.md` for tuning prompts and adding your own.
 - Dashboard widgets: show, hide, reorder.
 - Agents: disable unused ones; add custom agents with your own system prompt.
 
+### Sync across devices (optional)
+- Settings > Sync and account: enter your Supabase project URL and publishable key, then Sign in or Create account. One-time database setup is in `SYNC.md`.
+- Synced: tasks, projects, documents and their history, calendar events, agent run history, custom agents, display settings. Not synced: your Anthropic API key and sign-in tokens.
+- It syncs a few seconds after each change, when you return to the page and when you reconnect. The line under the menu shows the state and any pending changes.
+- If two devices change the same record, the later edit wins as a whole. For documents, let one device sync before editing on another.
+- Sign out keeps your data on the device. Delete cloud data removes the cloud copy only and switches automatic sync off.
+- Records are stored unencrypted in your project. Do not sync client-confidential material unless that is acceptable.
+
 ### Data and privacy
-- Stored in IndexedDB in this browser. Nothing leaves it except the request you trigger with *Run agent* (to api.anthropic.com).
-- Backups exclude the API key. Encrypted backups use a passphrase you must not lose.
+- Stored in IndexedDB in this browser. Without sync, nothing leaves it except the request you trigger with *Run agent* (to api.anthropic.com). With sync on, your records are also stored in your Supabase project.
+- Backups exclude the API key and sign-in state. Encrypted backups use a passphrase you must not lose.
 
 ## 5. Troubleshooting
 
@@ -74,3 +82,4 @@ See `AGENTS.md` for tuning prompts and adding your own.
 | Data missing after restart | Private window or cleared site data | Restore from backup; use a normal profile |
 | No reminders | Page closed or notifications blocked | Keep a tab open or use the calendar export |
 | Calendar events missing | Recurring events are not expanded | Only the first occurrence is imported |
+| Sync errors | Setup, key or connection | See the troubleshooting table in `SYNC.md` |

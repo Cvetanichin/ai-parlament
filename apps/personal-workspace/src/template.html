@@ -214,16 +214,26 @@ const DEFAULTS = () => ({
     onboardingDismissed: false,
   },
   tasks: [], projects: [], docs: [], events: [], runs: [], customAgents: [], fired: {}, lastDigest: null,
+  sync: { url: "", anonKey: "", email: "", uid: "", session: null, cursor: null, pulled: false, stampNow: false, meta: {}, lastSync: null, lastError: "", auto: true },
 });
 let S = DEFAULTS();
 let saveTimer = null;
-function save() { clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.set("state", S), 150); }
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    let dirty = false;
+    if (syncActive()) { try { dirty = syncDetect() > 0; } catch (e) { console.error("sync detect failed", e); } }
+    DB.set("state", S);
+    if (dirty) scheduleSync();
+    paintSync();
+  }, 150);
+}
 const MIGRATIONS = {
   // Add one function per schema bump: MIGRATIONS[n] upgrades state from n-1 to n.
 };
 function migrate(st) {
   const base = DEFAULTS();
-  const out = { ...base, ...st, settings: { ...base.settings, ...(st.settings || {}) } };
+  const out = { ...base, ...st, settings: { ...base.settings, ...(st.settings || {}) }, sync: { ...base.sync, ...(st.sync || {}) } };
   for (let v = (st.schema || 0) + 1; v <= SCHEMA_VERSION; v++) if (MIGRATIONS[v]) MIGRATIONS[v](out);
   out.schema = SCHEMA_VERSION; return out;
 }
@@ -341,9 +351,9 @@ function importICS(text) {
   for (const e of events) {
     const key = `${e.uid || e.title}|${e.start}`;
     if (S.events.some((x) => x.key === key)) continue;
-    S.events.push({ id: uid(), key, title: e.title || "(untitled)", start: e.start, time: e.time }); added++;
+    S.events.push({ id: "e" + cyrb53(key).toString(36), key, title: e.title || "(untitled)", start: e.start, time: e.time }); added++;
     if (re && re.test(e.title || "") && !S.tasks.some((t) => t.icsKey === key)) {
-      S.tasks.push(newTask({ title: e.title, due: e.start, notes: "Imported from calendar", source: "calendar", icsKey: key })); tasks++;
+      S.tasks.push(newTask({ id: "c" + cyrb53(key).toString(36), title: e.title, due: e.start, notes: "Imported from calendar", source: "calendar", icsKey: key })); tasks++;
     }
   }
   save(); return { total: events.length, added, tasks, recurring };
@@ -482,7 +492,8 @@ function parseHash() { const [, r, a] = location.hash.split("/"); route = ROUTES
 function renderNav() {
   const n = el$("nav"); const att = attentionCount();
   n.replaceChildren(h("h1", {}, "Personal Workspace"),
-    ...ROUTES.map(([k, label]) => h("a", { href: "#/" + k, "aria-current": route === k ? "page" : null }, label, k === "dashboard" && att ? h("span", { class: "badge", "aria-label": att + " items need attention" }, att) : null)));
+    ...ROUTES.map(([k, label]) => h("a", { href: "#/" + k, "aria-current": route === k ? "page" : null }, label, k === "dashboard" && att ? h("span", { class: "badge", "aria-label": att + " items need attention" }, att) : null)),
+    h("div", { class: "small muted", id: "nav-sync", style: "padding:12px 10px 0" }, syncLabel()));
 }
 function pageHeader(title, ...extra) {
   const q = h("input", { type: "search", placeholder: "Search everything", "aria-label": "Search everything", style: "max-width:260px", value: route === "search" ? routeArg || "" : "", onkeydown: (e) => { if (e.key === "Enter" && q.value.trim()) go("search", q.value.trim()); } });
@@ -564,7 +575,7 @@ function vOnboarding() {
   const steps = [
     ["Add your first task", S.tasks.length > 0, () => editTask()], ["Create a project", S.projects.length > 0, () => go("projects")],
     ["Import a calendar (.ics) or skip", S.events.length > 0, () => go("calendar")], ["Add an API key to run agents live (optional)", !!S.settings.apiKey, () => go("settings")],
-    ["Run an agent or copy its prompt", S.runs.length > 0, () => go("agents")], ["Export a backup", !!S.settings.backedUp, () => go("settings")],
+    ["Run an agent or copy its prompt", S.runs.length > 0, () => go("agents")], ["Sign in to sync across devices (optional)", !!S.sync.session, () => go("settings")], ["Export a backup", !!S.settings.backedUp, () => go("settings")],
   ];
   const done = steps.filter((s) => s[1]).length;
   return h("section", { class: "card wide" }, h("div", { class: "row between" }, h("h3", {}, `Getting started (${done}/${steps.length})`), h("div", { class: "row" }, h("button", { onclick: () => go("guide") }, "Open guide"), h("button", { onclick: () => { S.settings.onboardingDismissed = true; save(); render(); } }, "Dismiss"))),
@@ -740,17 +751,18 @@ function vSettings() {
   const key = h("input", { type: "password", value: s.apiKey, autocomplete: "off", placeholder: "sk-ant-...", oninput: upd((t) => (s.apiKey = t.value.trim())) });
   secs.push(h("section", { class: "card" }, h("h3", {}, "AI connection"), h("p", { class: "small muted" }, "Optional. Your Anthropic API key is stored only in this browser and sent only to api.anthropic.com. Anyone with access to this browser profile can read it, and it is excluded from backups. Use a key with a spend limit."),
     h("label", {}, "API key"), key, h("label", {}, "Model ID"), h("input", { value: s.model, oninput: upd((t) => (s.model = t.value.trim())) }), h("label", {}, "Max output tokens"), h("input", { type: "number", min: "500", max: "16000", value: s.maxTokens, oninput: upd((t) => (s.maxTokens = Number(t.value))) })));
+  secs.push(syncCard());
   secs.push(h("section", { class: "card" }, h("h3", {}, "Reminders and capacity"),
     h("label", {}, "Remind me this many days before a deadline"), h("div", { class: "row" }, [7, 3, 2, 1, 0].map((d) => h("label", { class: "inline" }, h("input", { type: "checkbox", checked: s.leadDays.includes(d), onchange: (e) => { s.leadDays = e.target.checked ? [...new Set([...s.leadDays, d])] : s.leadDays.filter((x) => x !== d); save(); } }), d === 0 ? "On the day" : d + "d"))),
     h("p", {}, h("label", { class: "inline" }, h("input", { type: "checkbox", checked: s.notify, onchange: async (e) => { if (e.target.checked && "Notification" in window) { const p = await Notification.requestPermission(); s.notify = p === "granted"; if (!s.notify) { e.target.checked = false; toast("Browser notifications were blocked"); } } else s.notify = false; save(); } }), "Also show browser notifications (only while this page is open)")),
     h("label", {}, "Working hours per weekday"), h("input", { type: "number", min: "1", max: "16", step: "0.5", value: s.hoursPerDay, oninput: upd((t) => (s.hoursPerDay = Number(t.value) || 6)) }),
     h("label", {}, "Calendar events that become tasks (regular expression)"), h("input", { value: s.icsDeadlineRegex, oninput: upd((t) => (s.icsDeadlineRegex = t.value)) })));
-  secs.push(h("section", { class: "card" }, h("h3", {}, "Data"), h("p", { class: "small muted" }, "All data lives in this browser. Back up regularly; clearing site data deletes it."),
-    h("div", { class: "row" }, h("button", { class: "primary", onclick: () => { download(`workspace-backup-${today()}.json`, JSON.stringify(exportable(), null, 1), "application/json"); S.settings.backedUp = true; save(); } }, "Export backup"), h("button", { onclick: encryptedExport }, "Export encrypted"), h("button", { onclick: importBackup }, "Import backup"), h("button", { onclick: loadSample }, "Load sample data"), h("button", { class: "danger", onclick: () => { if (confirm("Delete ALL workspace data in this browser?") && prompt('Type DELETE to confirm') === "DELETE") { S = DEFAULTS(); save(); applyTheme(); render(); } } }, "Erase everything"))));
+  secs.push(h("section", { class: "card" }, h("h3", {}, "Data"), h("p", { class: "small muted" }, "Data lives in this browser unless you turn on sync. Back up regularly; clearing site data deletes the local copy."),
+    h("div", { class: "row" }, h("button", { class: "primary", onclick: () => { download(`workspace-backup-${today()}.json`, JSON.stringify(exportable(), null, 1), "application/json"); S.settings.backedUp = true; save(); } }, "Export backup"), h("button", { onclick: encryptedExport }, "Export encrypted"), h("button", { onclick: importBackup }, "Import backup"), h("button", { onclick: loadSample }, "Load sample data"), h("button", { class: "danger", onclick: () => { if (confirm("Delete ALL workspace data in this browser? Data already synced to the cloud is not deleted; use Delete cloud data for that.") && prompt('Type DELETE to confirm') === "DELETE") { S = DEFAULTS(); save(); applyTheme(); render(); } } }, "Erase everything"))));
   secs.push(h("section", { class: "card" }, h("h3", {}, "About"), h("p", { class: "small" }, `Version ${APP_VERSION}, data schema ${SCHEMA_VERSION}.`), h("p", { class: "small muted" }, "Updates: replace index.html with the new build; your data stays in the browser and is migrated automatically. See docs/MAINTENANCE.md.")));
   wrap.append(h("div", { class: "grid" }, secs)); return wrap;
 }
-const exportable = () => { const c = JSON.parse(JSON.stringify(S)); c.settings.apiKey = ""; return { app: "personal-workspace", version: APP_VERSION, exported: new Date().toISOString(), state: c }; };
+const exportable = () => { const c = JSON.parse(JSON.stringify(S)); c.settings.apiKey = ""; c.sync = { ...DEFAULTS().sync, url: S.sync.url }; return { app: "personal-workspace", version: APP_VERSION, exported: new Date().toISOString(), state: c }; };
 const b64 = (u8) => btoa(String.fromCharCode(...u8)), unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 async function deriveKey(pass, salt) { const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]); return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]); }
 async function encryptedExport() {
@@ -765,8 +777,8 @@ async function importBackup() {
     let j = JSON.parse(await readText(f));
     if (j.enc) { const pass = prompt("Passphrase:"); if (!pass) return; const key = await deriveKey(pass, unb64(j.salt)); j = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(j.iv) }, key, unb64(j.data)))); }
     if (j.app !== "personal-workspace" || !j.state) throw new Error("Not a workspace backup");
-    if (!confirm("Replace current data with this backup? Your API key is kept.")) return;
-    const keep = S.settings.apiKey; S = migrate(j.state); S.settings.apiKey = keep; save(); render(); toast("Backup restored");
+    if (!confirm("Replace current data with this backup? Your API key and sign-in are kept. If sync is on, the backup is uploaded as the newest version, and records missing from it return from the cloud.")) return;
+    const keep = S.settings.apiKey, keepSync = S.sync; S = migrate(j.state); S.settings.apiKey = keep; S.sync = keepSync; if (S.sync.session) { S.sync.meta = {}; S.sync.cursor = null; S.sync.pulled = false; S.sync.stampNow = true; } save(); render(); toast("Backup restored");
   } catch (e) { toast("Import failed: " + (e.name === "OperationError" ? "wrong passphrase" : e.message)); }
 }
 function loadSample() {
@@ -802,12 +814,278 @@ function vGuide() {
 - **Deadline agent:** proposes date and priority changes; nothing changes until you press *Apply*. The *local triage* button works offline.
 - **Insights:** rate every agent output (Yes/No). Recommendations improve with use.
 - **Custom agents:** Settings > Agents > Add custom agent. Copy a built-in prompt as a starting point.`, "")));
-  wrap.append(sec("Privacy and safety", mdBox(`- Data stays in this browser (IndexedDB). Nothing is sent anywhere except to Anthropic when you press *Run agent*, and that request contains only the form fields (and the snapshot if ticked).
+  wrap.append(sec("Sync across devices (optional)", mdBox(`1. Settings > Sync and account. Enter your Supabase project URL and publishable key, then sign in or create an account.
+2. Tasks, projects, documents, calendar events, agent history, custom agents and display settings then sync automatically. If two devices change the same record, the later edit wins.
+3. Work offline as usual: changes queue and upload when you are back online. The status under the menu shows what is pending.
+4. Your API key and sign-in tokens never leave the device. Records are stored unencrypted in your project, protected by row-level security.
+5. One-off setup of the database table is in docs/SYNC.md.`, "")));
+  wrap.append(sec("Privacy and safety", mdBox(`- Data stays in this browser (IndexedDB) unless you sign in to sync, in which case your records are also stored in your Supabase project. Nothing else is sent anywhere except to Anthropic when you press *Run agent*, and that request contains only the form fields (and the snapshot if ticked).
 - The API key is stored locally and excluded from backups.
 - Agents can be wrong. Verify facts, figures and citations before use.
 - Encrypted backups use AES-GCM with a passphrase; lose the passphrase and the backup is unrecoverable.`, "")));
-  wrap.append(sec("Full documentation", h("p", {}, "docs/USER_GUIDE.md, docs/AGENTS.md (prompt design and tuning), docs/ARCHITECTURE.md (design, scaling and integrations), docs/MAINTENANCE.md (updates, support and roadmap).")));
+  wrap.append(sec("Full documentation", h("p", {}, "docs/USER_GUIDE.md, docs/SYNC.md (account and sync setup), docs/AGENTS.md (prompt design and tuning), docs/ARCHITECTURE.md (design, scaling and integrations), docs/MAINTENANCE.md (updates, support and roadmap).")));
   return wrap;
+}
+
+/* ---------- sync (optional): Supabase auth + per-record last-write-wins ---------- */
+// Protocol and security notes: docs/SYNC.md. No library: plain fetch against
+// Supabase Auth (GoTrue) and PostgREST. Tables and RPC: migration 26.
+const SYNC_KINDS = { task: "tasks", project: "projects", doc: "docs", event: "events", run: "runs", agent: "customAgents" };
+const SYNC_SETTINGS = ["theme", "accent", "density", "widgets", "hiddenWidgets", "disabledAgents", "model", "maxTokens", "leadDays", "hoursPerDay", "icsDeadlineRegex"];
+const SYNC_MAX_ITEM = 1900000; // chars; the database rejects records over 2 MiB
+const sync = { busy: false, again: false, timer: null, state: "idle", msg: "", refreshing: null };
+
+function cyrb53(str, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < str.length; i++) { const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+// Key-sorted JSON so the same content always hashes the same, whatever the key order.
+const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x));
+const hashOf = (v) => cyrb53(canon(v));
+const syncActive = () => !!(S.sync.session && S.sync.url && S.sync.anonKey);
+const syncPending = () => Object.values(S.sync.meta).filter((m) => m.dirty).length;
+const pickSettings = () => Object.fromEntries(SYNC_SETTINGS.map((k) => [k, S.settings[k]]));
+function normUrl(u) {
+  u = (u || "").trim().replace(/\/+$/, "");
+  return /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(u) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(u) ? u : "";
+}
+
+/* what exists locally, as key -> {kind, id, data} */
+function syncRecords() {
+  const out = new Map();
+  for (const [kind, store] of Object.entries(SYNC_KINDS)) for (const rec of S[store]) if (rec && typeof rec.id === "string") out.set(`${kind}:${rec.id}`, { kind, id: rec.id, data: rec });
+  out.set("settings:main", { kind: "settings", id: "main", data: pickSettings() });
+  return out;
+}
+/* Stamp what changed since the last look. Runs on every save, so the stamp is close to the
+   real edit time. Before the first successful pull a device has no basis to claim "newer", so its records
+   get timestamp 1: whatever the cloud already holds wins, and brand-new records still upload. */
+function syncDetect() {
+  const sy = S.sync, now = Date.now(), u = sy.pulled || sy.stampNow ? now : 1, cur = syncRecords();
+  for (const [key, rec] of cur) {
+    const h = hashOf(rec.data), m = sy.meta[key];
+    if (!m || m.deleted || m.h !== h) sy.meta[key] = { h, u, dirty: true };
+  }
+  for (const [key, m] of Object.entries(sy.meta)) if (!cur.has(key) && !m.deleted) sy.meta[key] = { deleted: true, u, dirty: true };
+  return syncPending();
+}
+
+/* remote -> local */
+function fromRemote(kind, id, d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return null;
+  switch (kind) {
+    case "task": return typeof d.title === "string" ? Object.assign(newTask({}), d, { id }) : null;
+    case "project": return typeof d.name === "string" ? Object.assign({ goal: "", due: "", status: "active" }, d, { id }) : null;
+    case "doc": return typeof d.title === "string" && Array.isArray(d.versions) && d.versions.length ? Object.assign({ tags: [], projectId: "", created: Date.now() }, d, { id }) : null;
+    case "event": return validDay(d.start) ? Object.assign({ title: "(untitled)", time: "", key: id }, d, { id }) : null;
+    case "run": return typeof d.agent === "string" ? Object.assign({}, d, { id }) : null;
+    case "agent": return typeof d.name === "string" && typeof d.system === "string" ? Object.assign({ description: "" }, d, { id }) : null;
+  }
+  return null;
+}
+function applyRemoteSettings(d) {
+  const def = DEFAULTS().settings;
+  for (const k of SYNC_SETTINGS) if (d && k in d && Array.isArray(d[k]) === Array.isArray(def[k]) && typeof d[k] === typeof def[k]) S.settings[k] = d[k];
+}
+function syncApply(rows) {
+  const sy = S.sync; let changed = 0, docsTouched = false;
+  for (const r of rows) {
+    if (r.kind !== "settings" && !(r.kind in SYNC_KINDS)) continue;
+    const key = `${r.kind}:${r.id}`, R = Number(r.client_updated_at), m = sy.meta[key], arr = r.kind === "settings" ? null : S[SYNC_KINDS[r.kind]];
+    if (r.deleted) {
+      if (m && m.u > R) continue; // a newer local change (or local delete) wins
+      if (arr) { const i = arr.findIndex((x) => x.id === r.id); if (i >= 0) { arr.splice(i, 1); changed++; docsTouched ||= r.kind === "doc"; } }
+      sy.meta[key] = { deleted: true, u: Math.max(R, m ? m.u : 0), dirty: false };
+      continue;
+    }
+    const rh = hashOf(r.data);
+    if (m && !m.deleted && m.h === rh) { m.u = Math.max(m.u, R); m.dirty = false; continue; } // already identical
+    if (m && m.u > R) continue; // local is newer; the push will carry it
+    if (r.kind === "settings") { applyRemoteSettings(r.data); sy.meta[key] = { h: hashOf(pickSettings()), u: R, dirty: false }; changed++; applyTheme(); continue; }
+    const rec = fromRemote(r.kind, r.id, r.data);
+    if (!rec) continue;
+    // The same calendar entry imported on two devices must not appear twice.
+    if (r.kind === "event" && S.events.some((e) => e.key === rec.key && e.id !== rec.id)) { sy.meta[key] = { deleted: true, u: R, dirty: false }; continue; }
+    const i = arr.findIndex((x) => x.id === r.id);
+    if (i >= 0) arr[i] = rec; else arr.push(rec);
+    sy.meta[key] = { h: hashOf(rec), u: R, dirty: false };
+    changed++; docsTouched ||= r.kind === "doc";
+  }
+  if (docsTouched) S.docs.sort((a, b) => (b.created || 0) - (a.created || 0));
+  return changed;
+}
+
+/* HTTP */
+async function netFetch(url, init) {
+  try { return await fetch(url, init); }
+  catch { const e = new Error("Network unreachable"); e.offline = true; throw e; }
+}
+async function syncAuthFetch(path, body, token) {
+  const r = await netFetch(S.sync.url + path, { method: "POST", headers: { apikey: S.sync.anonKey, "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+  const text = await r.text(); let j = {}; try { j = text ? JSON.parse(text) : {}; } catch { /* not JSON */ }
+  if (!r.ok) { const e = new Error(j.msg || j.error_description || j.message || j.error || `HTTP ${r.status}`); e.status = r.status; throw e; }
+  return j;
+}
+const toSession = (j, email) => ({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600), email: j.user?.email || email, uid: j.user?.id });
+function syncRefresh() {
+  if (sync.refreshing) return sync.refreshing;
+  sync.refreshing = (async () => {
+    try {
+      const j = await syncAuthFetch("/auth/v1/token?grant_type=refresh_token", { refresh_token: S.sync.session.refresh_token });
+      S.sync.session = toSession(j, S.sync.session.email); save();
+    } catch (e) {
+      if (e.status === 400 || e.status === 401) { S.sync.session = null; save(); throw new Error("Session expired. Sign in again."); }
+      throw e;
+    } finally { sync.refreshing = null; }
+  })();
+  return sync.refreshing;
+}
+async function syncReq(method, path, body, headers = {}) {
+  if (!S.sync.session) throw new Error("Not signed in");
+  if (S.sync.session.expires_at - 60 < Date.now() / 1000) await syncRefresh();
+  const go1 = () => netFetch(S.sync.url + path, { method, headers: { apikey: S.sync.anonKey, authorization: `Bearer ${S.sync.session.access_token}`, accept: "application/json", ...(body !== undefined ? { "content-type": "application/json" } : {}), ...headers }, body: body !== undefined ? JSON.stringify(body) : undefined });
+  let r = await go1();
+  if (r.status === 401) { await syncRefresh(); r = await go1(); }
+  const text = await r.text(); let j = null; try { j = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
+  if (!r.ok) { const e = new Error((j && (j.message || j.msg)) || `HTTP ${r.status}`); e.status = r.status; throw e; }
+  return j;
+}
+
+/* pull, then push */
+async function syncPull() {
+  const sy = S.sync; let from = sy.cursor ? new Date(Date.parse(sy.cursor) - 10000).toISOString() : null, max = sy.cursor, applied = 0;
+  for (let page = 0; page < 200; page++) { // 10 s overlap: commits can land slightly out of timestamp order; applying is idempotent
+    const rows = await syncReq("GET", `/rest/v1/workspace_items?select=kind,id,data,deleted,client_updated_at,server_updated_at&order=server_updated_at.asc&limit=500${from ? `&server_updated_at=gte.${encodeURIComponent(from)}` : ""}`);
+    applied += syncApply(rows);
+    if (rows.length) { const last = rows[rows.length - 1].server_updated_at; if (!max || last > max) max = last; from = last; }
+    if (rows.length < 500) break;
+  }
+  sy.cursor = max; sy.pulled = true;
+  return applied;
+}
+async function syncPush() {
+  const sy = S.sync, cur = syncRecords(), items = [], sent = [];
+  sync.warn = 0;
+  for (const [key, m] of Object.entries(sy.meta)) {
+    if (!m.dirty) continue;
+    const i = key.indexOf(":"), kind = key.slice(0, i), id = key.slice(i + 1);
+    if (m.deleted) { items.push({ kind, id, data: {}, deleted: true, client_updated_at: m.u }); sent.push([key, m]); continue; }
+    const rec = cur.get(key); if (!rec) continue;
+    if (canon(rec.data).length > SYNC_MAX_ITEM) { m.dirty = false; sync.warn++; continue; } // too large for the database; kept local only
+    items.push({ kind, id, data: rec.data, deleted: false, client_updated_at: m.u }); sent.push([key, m]);
+  }
+  let start = 0;
+  while (start < items.length) {
+    let end = start, size = 0;
+    while (end < items.length && end - start < 200 && size + JSON.stringify(items[end]).length < 1500000) size += JSON.stringify(items[end++]).length;
+    if (end === start) end++;
+    await syncReq("POST", "/rest/v1/rpc/workspace_push", { items: items.slice(start, end) });
+    for (const [key, m0] of sent.slice(start, end)) { const m = sy.meta[key]; if (m && m.h === m0.h && m.u === m0.u && !!m.deleted === !!m0.deleted) m.dirty = false; }
+    start = end;
+  }
+  return items.length;
+}
+
+/* orchestration */
+function ago(ts) { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`; }
+function syncLabel() {
+  if (!S.sync.session) return "Sync: off";
+  const p = syncPending(), tail = p ? `, ${p} pending` : "";
+  if (sync.state === "syncing") return "Sync: syncing...";
+  if (sync.state === "offline") return `Sync: offline${tail}`;
+  if (sync.state === "error") return `Sync: error${tail}`;
+  return S.sync.lastSync ? `Synced ${ago(S.sync.lastSync)}${tail}` : "Sync: not yet synced";
+}
+function paintSync() {
+  const a = $("#nav-sync"); if (a) a.textContent = syncLabel();
+  const b = $("#sync-status"); if (b) b.textContent = syncLabel() + (sync.msg ? `. ${sync.msg}` : "");
+}
+function setSync(state, msg = "") { sync.state = state; sync.msg = msg; paintSync(); }
+function scheduleSync(ms = 4000) { clearTimeout(sync.timer); if (syncActive() && S.sync.auto) sync.timer = setTimeout(() => syncRun(), ms); }
+function syncTick(force) {
+  if (!syncActive() || !S.sync.auto) return;
+  if (force || syncPending() || !S.sync.lastSync || Date.now() - S.sync.lastSync > 300000) syncRun();
+}
+async function syncRun(manual) {
+  if (!syncActive()) return;
+  if (sync.busy) { sync.again = true; return; }
+  sync.busy = true; setSync("syncing");
+  try {
+    syncDetect();
+    const pulled = await syncPull();
+    syncDetect();
+    await syncPush();
+    S.sync.stampNow = false; S.sync.lastSync = Date.now(); S.sync.lastError = "";
+    setSync("idle", sync.warn ? `${sync.warn} record(s) too large to sync and kept on this device` : "");
+    save();
+    if (pulled) {
+      const safe = ["dashboard", "tasks", "projects", "calendar", "insights"].includes(route) || (route === "library" && !routeArg);
+      if (safe && !el$("dlg").open) render(); else toast(`${pulled} change(s) arrived from your other devices. Reopen this page to see them.`);
+    } else if (manual) toast("Sync complete");
+  } catch (e) {
+    const offline = !!e.offline;
+    S.sync.lastError = e.message; save();
+    setSync(offline ? "offline" : "error", offline ? "" : e.message);
+    if (manual) toast(offline ? "You appear to be offline. Changes will sync when you reconnect." : "Sync failed: " + e.message);
+    if (!S.sync.session) { renderNav(); if (route === "settings") render(); }
+  } finally {
+    sync.busy = false;
+    if (sync.again) { sync.again = false; scheduleSync(1500); }
+  }
+}
+
+/* account */
+async function syncAuth(mode, email, password) {
+  const url = normUrl(S.sync.url);
+  if (!url) throw new Error("Enter your Supabase project URL, for example https://abcd.supabase.co");
+  if (!S.sync.anonKey.trim()) throw new Error("Enter the project's publishable (anon) key");
+  S.sync.url = url;
+  const j = await syncAuthFetch(mode === "signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password", { email, password });
+  if (!j.access_token) return { needsConfirm: true };
+  const uid = j.user?.id;
+  const hasData = S.tasks.length || S.projects.length || S.docs.length;
+  if (S.sync.uid && S.sync.uid !== uid && hasData && !confirm("This browser holds data last synced with a different account. Upload it to this account?")) return { cancelled: true };
+  if (S.sync.uid !== uid) { S.sync.meta = {}; S.sync.cursor = null; S.sync.pulled = false; S.sync.lastSync = null; }
+  S.sync.uid = uid; S.sync.email = email; S.sync.session = toSession(j, email); save();
+  setSync("idle"); renderNav();
+  syncRun(true);
+  return { ok: true };
+}
+async function syncSignOut() {
+  try { if (S.sync.session) await syncAuthFetch("/auth/v1/logout", {}, S.sync.session.access_token); } catch { /* best effort */ }
+  S.sync.session = null; save(); setSync("idle"); renderNav();
+}
+async function syncDeleteCloud() {
+  await syncReq("DELETE", `/rest/v1/workspace_items?user_id=eq.${encodeURIComponent(S.sync.session.uid)}`, undefined, { prefer: "return=minimal" });
+  S.sync.meta = {}; S.sync.cursor = null; S.sync.pulled = false; S.sync.lastSync = null; S.sync.auto = false; save(); setSync("idle");
+}
+function syncCard() {
+  const sy = S.sync, upd = (fn) => (e) => { fn(e.target); save(); };
+  const note = h("p", { class: "small muted" }, "Optional. Signs in to your own Supabase project and keeps tasks, projects, documents and settings in step across devices. Records are stored unencrypted in that project, protected by row-level security, so a person with admin access to the project could read them. Your Anthropic API key and sign-in tokens never sync. Setup: docs/SYNC.md.");
+  if (!sy.session) {
+    const email = h("input", { type: "email", autocomplete: "username", value: sy.email || "", "aria-label": "Email" }), pw = h("input", { type: "password", autocomplete: "current-password", "aria-label": "Password" });
+    const act = (mode) => async (e) => {
+      const b = e.target; if (!email.value.trim() || !pw.value) return toast("Enter your email and password");
+      sy.email = email.value.trim(); b.disabled = true;
+      try { const r = await syncAuth(mode, sy.email, pw.value); pw.value = ""; if (r.needsConfirm) toast("Check your email to confirm the account, then sign in."); else if (r.ok) { toast("Signed in"); render(); } }
+      catch (err) { toast(err.offline ? "Could not reach the project URL. Check it and your connection." : err.message); }
+      finally { b.disabled = false; }
+    };
+    return h("section", { class: "card" }, h("h3", {}, "Sync and account"), note,
+      h("label", {}, "Project URL"), h("input", { value: sy.url, placeholder: "https://your-project.supabase.co", oninput: upd((t) => (sy.url = t.value.trim())) }),
+      h("label", {}, "Publishable (anon) key"), h("input", { value: sy.anonKey, placeholder: "sb_publishable_... or the anon JWT", autocomplete: "off", oninput: upd((t) => (sy.anonKey = t.value.trim())) }),
+      h("label", {}, "Email"), email, h("label", {}, "Password"), pw,
+      h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "primary", onclick: act("signin") }, "Sign in"), h("button", { onclick: act("signup") }, "Create account")),
+      h("p", { class: "small muted" }, "Signing in with an existing account on the project works; creating one adds a user to that project."));
+  }
+  return h("section", { class: "card" }, h("h3", {}, "Sync and account"), note,
+    h("p", {}, "Signed in as ", h("strong", {}, sy.session.email || "your account")), h("p", { class: "small", id: "sync-status", role: "status" }, syncLabel() + (sync.msg ? `. ${sync.msg}` : "")),
+    h("p", {}, h("label", { class: "inline" }, h("input", { type: "checkbox", checked: sy.auto, onchange: (e) => { sy.auto = e.target.checked; save(); if (sy.auto) scheduleSync(500); } }), "Sync automatically")),
+    h("div", { class: "row" }, h("button", { class: "primary", onclick: () => syncRun(true) }, "Sync now"), h("button", { onclick: async () => { await syncSignOut(); render(); toast("Signed out. Data on this device is kept."); } }, "Sign out"),
+      h("button", { class: "danger", onclick: async () => { if (!confirm("Delete ALL your workspace data from the cloud? Data on this device is kept and automatic sync is switched off.")) return; try { await syncDeleteCloud(); render(); toast("Cloud data deleted"); } catch (err) { toast("Could not delete: " + err.message); } } }, "Delete cloud data")));
 }
 
 /* ---------- boot ---------- */
@@ -817,8 +1095,11 @@ async function boot() {
   addEventListener("hashchange", render);
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => S.settings.theme === "auto" && applyTheme());
   if (S.tasks.length === 0 && !saved) S.settings.onboardingDismissed = false;
-  render(); checkReminders(); setInterval(checkReminders, 60000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { checkReminders(); renderNav(); } });
+  render(); checkReminders();
+  setInterval(() => { checkReminders(); syncTick(); paintSync(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { checkReminders(); renderNav(); syncTick(true); } });
+  addEventListener("online", () => syncTick(true));
+  syncTick(true);
 }
 boot();
 </script>
