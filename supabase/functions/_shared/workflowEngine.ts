@@ -289,8 +289,8 @@ export interface RunPromptOrchestrationTaskResult {
   formatterAgentRunId: string | null;
 }
 
-export async function runPromptOrchestrationTask(
-  params: RunPromptOrchestrationTaskParams,
+export async function runPromptOrchestrationTask<TConstraints = unknown>(
+  params: RunPromptOrchestrationTaskParams<TConstraints>,
 ): Promise<RunPromptOrchestrationTaskResult> {
   const { supabase, instanceId, organisationId, projectId, globalControl, normalizedInput, selectedContext, validator } = params;
 
