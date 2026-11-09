@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal Workspace</title>
+<meta name="description" content="Local-first personal workspace: tasks, projects, deadlines and prompt-defined AI agents.">
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#1b2430;--muted:#5b6675;--line:#dfe3e9;--accent:#2f5d8a;--accent-ink:#fff;--ok:#2d7a4f;--warn:#a86a00;--bad:#b3261e;--radius:10px;--gap:16px;--pad:16px}
+:root[data-theme="dark"]{--bg:#12161c;--panel:#1b212a;--ink:#e8ecf1;--muted:#9aa5b4;--line:#2c3541;--ok:#5cc08a;--warn:#e0a63a;--bad:#f2766d}
+:root[data-theme="contrast"]{--bg:#fff;--panel:#fff;--ink:#000;--muted:#222;--line:#000;--ok:#005a1f;--warn:#6b3d00;--bad:#8a0000}
+:root[data-density="compact"]{--gap:10px;--pad:10px;--radius:6px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+nav.side{background:var(--panel);border-right:1px solid var(--line);padding:var(--pad);position:sticky;top:0;height:100vh;overflow:auto}
+nav.side h1{font-size:16px;margin:0 0 12px}
+nav.side a{display:flex;justify-content:space-between;padding:8px 10px;border-radius:8px;color:var(--ink);text-decoration:none}
+nav.side a:hover{background:var(--bg)}
+nav.side a[aria-current="page"]{background:var(--accent);color:var(--accent-ink)}
+nav.side .grp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 10px 4px}
+.badge{background:var(--bad);color:#fff;border-radius:99px;padding:0 7px;font-size:12px}
+main{padding:calc(var(--pad)*1.5);max-width:1200px;width:100%}
+header.top{display:flex;gap:var(--gap);align-items:center;margin-bottom:var(--gap);flex-wrap:wrap}
+header.top h2{margin:0;flex:1;font-size:22px}
+.grid{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:var(--pad)}
+.card h3{margin:0 0 8px;font-size:15px}
+.card.wide{grid-column:1/-1}
+.muted{color:var(--muted)}.small{font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row.between{justify-content:space-between}
+.stack>*+*{margin-top:var(--gap)}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.link{border:0;background:none;padding:0;color:var(--accent);text-decoration:underline}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%}
+input[type=checkbox],input[type=radio]{width:auto;flex:none;margin-top:4px}
+textarea{min-height:90px;resize:vertical}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}
+label.inline{display:inline-flex;gap:6px;align-items:center;font-weight:400;font-size:14px;margin:0}
+label.inline input{width:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:0 8px;font-size:12px;color:var(--muted)}
+.tag.bad{color:var(--bad);border-color:var(--bad)}.tag.warn{color:var(--warn);border-color:var(--warn)}.tag.ok{color:var(--ok);border-color:var(--ok)}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .grow{flex:1;min-width:0}
+.done .t{text-decoration:line-through;color:var(--muted)}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.bar.over>i{background:var(--bad)}
+.out{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:var(--pad);overflow:auto;max-height:70vh}
+.out h1,.out h2,.out h3{margin:.9em 0 .3em}.out p{margin:.5em 0}
+.out pre,pre.raw{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;white-space:pre-wrap;font-size:13px}
+.out blockquote{border-left:3px solid var(--line);margin:.5em 0;padding-left:12px;color:var(--muted)}
+.split{display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:var(--gap);align-items:start}
+.banner{border:1px solid var(--warn);color:var(--warn);background:var(--panel);border-radius:var(--radius);padding:10px 14px;margin-bottom:var(--gap)}
+.add-del{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.diff .add{background:color-mix(in srgb,var(--ok) 20%,transparent)}.diff .del{background:color-mix(in srgb,var(--bad) 20%,transparent);text-decoration:line-through}
+.diff div{white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px;padding:0 6px}
+#toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;max-width:min(360px,calc(100vw - 32px))}
+.toast{background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px}
+dialog{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--ink);max-width:min(760px,94vw);width:100%}
+dialog::backdrop{background:#0008}
+.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:var(--panel);padding:6px;z-index:99}
+@media (max-width:820px){.app{grid-template-columns:1fr}nav.side{position:static;height:auto;display:flex;flex-wrap:wrap;gap:4px;border-right:0;border-bottom:1px solid var(--line)}nav.side h1,nav.side .grp{display:none}.split{grid-template-columns:1fr}main{padding:var(--pad)}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="app">
+  <nav class="side" id="nav" aria-label="Main"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="toasts" role="status" aria-live="polite"></div>
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+const BUILTIN_AGENTS = "__AGENTS__";
+const APP_VERSION = "__VERSION__";
+const SCHEMA_VERSION = 1;
+
+/* ---------- tiny helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "class") el.className = v;
+    else if (k === "value") el.value = v;
+    else if (v === true) el.setAttribute(k, "");
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+const pad2 = (n) => String(n).padStart(2, "0");
+const isoDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const today = () => isoDate(new Date());
+const parseDay = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const daysUntil = (s) => Math.round((parseDay(s) - parseDay(today())) / 864e5);
+const addDays = (s, n) => { const d = parseDay(s); d.setDate(d.getDate() + n); return isoDate(d); };
+const validDay = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(parseDay(s));
+const fmtDay = (s) => s ? parseDay(s).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "No date";
+const dueLabel = (s) => { if (!s) return "No date"; const d = daysUntil(s); return d < 0 ? `${-d}d overdue` : d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d}d`; };
+const el$ = (id) => $("#" + id);
+
+function toast(msg) {
+  const t = h("div", { class: "toast" }, msg);
+  el$("toasts").append(t); setTimeout(() => t.remove(), 4500);
+}
+function download(name, text, type = "text/plain") {
+  const a = h("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+async function copy(text, okMsg = "Copied") {
+  try { await navigator.clipboard.writeText(text); toast(okMsg); }
+  catch { const ta = h("textarea", { value: text }); document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast(okMsg); }
+}
+function pickFile(accept) {
+  return new Promise((res) => {
+    const i = h("input", { type: "file", accept, onchange: () => res(i.files[0] || null) });
+    i.click();
+  });
+}
+const readText = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); });
+
+/* ---------- minimal, safe markdown ---------- */
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+function md(src) {
+  const lines = src.replace(/\r/g, "").split("\n"); let out = "", i = 0, list = null;
+  const closeList = () => { if (list) { out += `</${list}>`; list = null; } };
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^```/.test(l)) { closeList(); const buf = []; i++; while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]); i++; out += `<pre>${esc(buf.join("\n"))}</pre>`; continue; }
+    if (/^\|.*\|\s*$/.test(l) && /^\|[\s:|-]+\|\s*$/.test(lines[i + 1] || "")) {
+      closeList(); const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
+      out += "<table><thead><tr>" + cells(l).map((c) => `<th>${c}</th>`).join("") + "</tr></thead><tbody>"; i += 2;
+      while (i < lines.length && /^\|.*\|\s*$/.test(lines[i])) out += "<tr>" + cells(lines[i++]).map((c) => `<td>${c}</td>`).join("") + "</tr>";
+      out += "</tbody></table>"; continue;
+    }
+    let m;
+    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { closeList(); out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; }
+    else if ((m = l.match(/^\s*[-*]\s+(.*)/))) { if (list !== "ul") { closeList(); out += "<ul>"; list = "ul"; } out += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== "ol") { closeList(); out += "<ol>"; list = "ol"; } out += `<li>${inline(m[1])}</li>`; }
+    else if (/^>\s?/.test(l)) { closeList(); out += `<blockquote>${inline(l.replace(/^>\s?/, ""))}</blockquote>`; }
+    else if (/^---+\s*$/.test(l)) { closeList(); out += "<hr>"; }
+    else if (!l.trim()) closeList();
+    else { closeList(); out += `<p>${inline(l)}</p>`; }
+    i++;
+  }
+  closeList(); return out;
+}
+const mdBox = (text, cls = "out") => { const d = h("div", { class: cls }); d.innerHTML = md(text); return d; };
+
+/* ---------- storage: IndexedDB with localStorage fallback ---------- */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res) => {
+      try {
+        const r = indexedDB.open("personal-workspace", 1);
+        r.onupgradeneeded = () => r.result.createObjectStore("kv");
+        r.onsuccess = () => { this.db = r.result; res(); };
+        r.onerror = () => res();
+      } catch { res(); }
+    });
+  },
+  get(k) {
+    return new Promise((res) => {
+      if (!this.db) { try { res(JSON.parse(localStorage.getItem("pw:" + k))); } catch { res(null); } return; }
+      const r = this.db.transaction("kv").objectStore("kv").get(k);
+      r.onsuccess = () => res(r.result ?? null); r.onerror = () => res(null);
+    });
+  },
+  set(k, v) {
+    return new Promise((res) => {
+      if (!this.db) { try { localStorage.setItem("pw:" + k, JSON.stringify(v)); } catch { toast("Storage full or blocked: export a backup now."); } res(); return; }
+      const t = this.db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k);
+      t.oncomplete = () => res(); t.onerror = () => { toast("Could not save. Export a backup now."); res(); };
+    });
+  },
+};
+
+/* ---------- state ---------- */
+const DEFAULTS = () => ({
+  schema: SCHEMA_VERSION,
+  settings: {
+    theme: "auto", accent: "#2f5d8a", density: "comfortable",
+    widgets: ["attention", "upcoming", "workload", "projects", "agents", "digest"],
+    hiddenWidgets: [],
+    disabledAgents: [],
+    apiKey: "", model: "claude-sonnet-5-5", maxTokens: 6000,
+    notify: false, leadDays: [3, 1, 0], hoursPerDay: 6,
+    icsDeadlineRegex: "deadline|due|submit",
+    onboardingDismissed: false,
+  },
+  tasks: [], projects: [], docs: [], events: [], runs: [], customAgents: [], fired: {}, lastDigest: null,
+});
+let S = DEFAULTS();
+let saveTimer = null;
+function save() { clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.set("state", S), 150); }
+const MIGRATIONS = {
+  // Add one function per schema bump: MIGRATIONS[n] upgrades state from n-1 to n.
+};
+function migrate(st) {
+  const base = DEFAULTS();
+  const out = { ...base, ...st, settings: { ...base.settings, ...(st.settings || {}) } };
+  for (let v = (st.schema || 0) + 1; v <= SCHEMA_VERSION; v++) if (MIGRATIONS[v]) MIGRATIONS[v](out);
+  out.schema = SCHEMA_VERSION; return out;
+}
+
+/* ---------- agents ---------- */
+const allAgents = () => [
+  ...BUILTIN_AGENTS,
+  ...S.customAgents.map((a) => ({
+    id: a.id, name: a.name, description: a.description, system: a.system, custom: true,
+    fields: [{ key: "request", label: "Request", type: "textarea", placeholder: "What should this agent do?" }], template: "{{request}}",
+  })),
+];
+const activeAgents = () => allAgents().filter((a) => !S.settings.disabledAgents.includes(a.id));
+const agentById = (id) => allAgents().find((a) => a.id === id);
+
+function snapshot() {
+  const open = S.tasks.filter((t) => t.status !== "done");
+  return JSON.stringify({
+    today: today(), dailyCapacityHours: S.settings.hoursPerDay,
+    tasks: open.map((t) => ({ id: t.id, title: t.title, project: S.projects.find((p) => p.id === t.projectId)?.name || null, due: t.due || null, effortHours: t.effort || null, priority: t.priority, status: t.status })),
+    projects: S.projects.filter((p) => p.status !== "done").map((p) => ({ name: p.name, due: p.due || null, goal: p.goal || null })),
+    calendarEvents: S.events.filter((e) => e.start >= today() && daysUntil(e.start) <= 14).map((e) => ({ title: e.title, date: e.start })),
+  }, null, 1);
+}
+function buildPrompt(agent, values, withContext) {
+  let user = agent.template.replace(/{{(\w+)}}/g, (_, k) => (values[k] || "").trim() || "(not specified)");
+  user = `Today's date: ${today()}\n\n${user}`;
+  if (withContext) user += `\n\nWORKSPACE SNAPSHOT (JSON):\n${snapshot()}`;
+  return { system: agent.system, user };
+}
+async function callClaude(system, user) {
+  const { apiKey, model, maxTokens } = S.settings;
+  const t0 = performance.now();
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    body: JSON.stringify({ model, max_tokens: Number(maxTokens) || 6000, system, messages: [{ role: "user", content: user }] }),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body?.error?.message || `HTTP ${r.status}`);
+  return { text: (body.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n"), ms: Math.round(performance.now() - t0), inTok: body.usage?.input_tokens || 0, outTok: body.usage?.output_tokens || 0, truncated: body.stop_reason === "max_tokens" };
+}
+function extractBlock(text, tag) {
+  const m = text.match(new RegExp("```" + tag + "\\s*([\\s\\S]*?)```"));
+  if (!m) return null;
+  try { const v = JSON.parse(m[1]); return Array.isArray(v) ? v : null; } catch { return null; }
+}
+
+/* ---------- deadline logic (local, works offline) ---------- */
+function weekdaysFrom(start, n) { let c = 0; for (let i = 0; i < n; i++) { const w = parseDay(addDays(start, i)).getDay(); if (w !== 0 && w !== 6) c++; } return c; }
+function triage() {
+  const open = S.tasks.filter((t) => t.status !== "done");
+  const scored = open.map((t) => {
+    const d = t.due ? daysUntil(t.due) : 30;
+    const urgency = d < 0 ? 100 + Math.min(-d, 20) * 3 : Math.max(0, 70 - d * 7);
+    return { t, d, score: urgency * (0.6 + 0.2 * (t.priority || 2)) };
+  }).sort((a, b) => b.score - a.score);
+  const bucket = (x) => x.d < 0 ? "overdue" : x.d <= 1 ? "now" : x.d <= 7 ? "week" : "later";
+  const groups = { overdue: [], now: [], week: [], later: [] };
+  scored.forEach((x) => groups[bucket(x)].push(x));
+  const due7 = open.filter((t) => t.due && daysUntil(t.due) <= 7);
+  const hours = due7.reduce((s, t) => s + (Number(t.effort) || 0), 0);
+  const capacity = weekdaysFrom(today(), 7) * S.settings.hoursPerDay;
+  const missingEffort = open.filter((t) => !t.effort).length;
+  const clusters = {}; open.forEach((t) => { if (t.due) clusters[t.due] = (clusters[t.due] || 0) + 1; });
+  const crowded = Object.entries(clusters).filter(([d, n]) => n >= 3 && daysUntil(d) >= 0 && daysUntil(d) <= 14).map(([d, n]) => ({ d, n }));
+  return { groups, hours, capacity, missingEffort, crowded, overdueCount: groups.overdue.length };
+}
+function attentionCount() { const g = triage().groups; return g.overdue.length + g.now.length; }
+
+/* ---------- reminders ---------- */
+function checkReminders() {
+  const day = today(); S.fired = Object.fromEntries(Object.entries(S.fired).filter(([k]) => k.endsWith(day)));
+  const msgs = [];
+  for (const t of S.tasks) {
+    if (t.status === "done" || !t.due) continue;
+    const d = daysUntil(t.due);
+    const lead = d < 0 ? -1 : d;
+    if (d >= 0 && !S.settings.leadDays.includes(d)) continue;
+    const key = `${t.id}:${lead}:${day}`;
+    if (S.fired[key]) continue; S.fired[key] = 1;
+    msgs.push(`${t.title}: ${dueLabel(t.due).toLowerCase()}`);
+  }
+  if (!msgs.length) return;
+  save();
+  const text = msgs.length > 3 ? `${msgs.length} deadlines need attention` : msgs.join(" | ");
+  toast(text);
+  if (S.settings.notify && "Notification" in window && Notification.permission === "granted") { try { new Notification("Workspace reminder", { body: text }); } catch {} }
+}
+
+/* ---------- calendar (ICS) ---------- */
+function parseICS(text) {
+  const lines = text.replace(/\r/g, "").replace(/\n[ \t]/g, "").split("\n");
+  const events = []; let cur = null, recurring = 0;
+  for (const l of lines) {
+    if (l === "BEGIN:VEVENT") cur = {};
+    else if (l === "END:VEVENT") { if (cur?.start) events.push(cur); cur = null; }
+    else if (cur) {
+      const i = l.indexOf(":"); if (i < 0) continue;
+      const [name] = l.slice(0, i).split(";"), val = l.slice(i + 1);
+      if (name === "SUMMARY") cur.title = val.replace(/\\,/g, ",").replace(/\\n/g, " ");
+      else if (name === "UID") cur.uid = val;
+      else if (name === "RRULE") { cur.recurring = true; recurring++; }
+      else if (name === "DTSTART") { const m = val.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?(Z?)/); if (m) {
+        let d = new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+        if (m[6]) d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)));
+        cur.start = isoDate(d); cur.time = m[4] ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}` : ""; } }
+    }
+  }
+  return { events, recurring };
+}
+function importICS(text) {
+  const { events, recurring } = parseICS(text); let added = 0, tasks = 0;
+  const re = (() => { try { return new RegExp(S.settings.icsDeadlineRegex, "i"); } catch { return null; } })();
+  for (const e of events) {
+    const key = `${e.uid || e.title}|${e.start}`;
+    if (S.events.some((x) => x.key === key)) continue;
+    S.events.push({ id: uid(), key, title: e.title || "(untitled)", start: e.start, time: e.time }); added++;
+    if (re && re.test(e.title || "") && !S.tasks.some((t) => t.icsKey === key)) {
+      S.tasks.push(newTask({ title: e.title, due: e.start, notes: "Imported from calendar", source: "calendar", icsKey: key })); tasks++;
+    }
+  }
+  save(); return { total: events.length, added, tasks, recurring };
+}
+function exportICS() {
+  const esc2 = (s) => (s || "").replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const out = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Personal Workspace//EN", "CALSCALE:GREGORIAN"];
+  for (const t of S.tasks.filter((x) => x.due && x.status !== "done")) {
+    const s = t.due.replace(/-/g, ""), e = addDays(t.due, 1).replace(/-/g, "");
+    out.push("BEGIN:VEVENT", `UID:${t.id}@personal-workspace`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${s}`, `DTEND;VALUE=DATE:${e}`,
+      `SUMMARY:${esc2("Due: " + t.title)}`, `DESCRIPTION:${esc2(t.notes)}`);
+    for (const trig of ["-P3D", "-P1D"]) out.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc2(t.title)}`, `TRIGGER:${trig}`, "END:VALARM");
+    out.push("END:VEVENT");
+  }
+  out.push("END:VCALENDAR"); return out.join("\r\n");
+}
+
+/* ---------- data model helpers ---------- */
+const newTask = (o) => ({ id: uid(), title: "", notes: "", projectId: "", due: "", effort: "", priority: 2, status: "todo", created: Date.now(), completedAt: null, source: "manual", ...o });
+const projectProgress = (p) => { const ts = S.tasks.filter((t) => t.projectId === p.id); return ts.length ? Math.round(100 * ts.filter((t) => t.status === "done").length / ts.length) : 0; };
+function setStatus(t, status) { t.status = status; t.completedAt = status === "done" ? Date.now() : null; save(); }
+function importTasks(items, projectId = "", source = "agent") {
+  let n = 0;
+  for (const it of items) {
+    if (!it || typeof it.title !== "string" || !it.title.trim()) continue;
+    S.tasks.push(newTask({ title: it.title.trim().slice(0, 200), due: validDay(it.due) ? it.due : "", effort: Number(it.effort) > 0 ? Number(it.effort) : "", priority: [1, 2, 3].includes(+it.priority) ? +it.priority : 2, notes: String(it.notes || "").slice(0, 1000), projectId, source })); n++;
+  }
+  save(); return n;
+}
+function applyUpdates(items) {
+  let n = 0;
+  for (const u of items) {
+    const t = S.tasks.find((x) => x.id === u?.id); if (!t) continue;
+    if (validDay(u.due)) t.due = u.due;
+    if ([1, 2, 3].includes(+u.priority)) t.priority = +u.priority;
+    if (u.note) t.notes = (t.notes ? t.notes + "\n" : "") + "[Agent] " + String(u.note).slice(0, 300);
+    n++;
+  }
+  save(); return n;
+}
+
+/* ---------- docs / versions / search ---------- */
+function saveDoc(doc, content, note) {
+  const last = doc.versions[doc.versions.length - 1];
+  if (last && last.content === content) return false;
+  doc.versions.push({ ts: Date.now(), content, note: note || "" });
+  if (doc.versions.length > 30) doc.versions.splice(0, doc.versions.length - 30);
+  save(); return true;
+}
+const addDoc = (title, content, tags = [], note = "Created") => { const d = { id: uid(), title, tags, projectId: "", created: Date.now(), versions: [] }; saveDoc(d, content, note); S.docs.unshift(d); save(); return d; };
+const docText = (d) => d.versions[d.versions.length - 1]?.content || "";
+function search(q) {
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean); if (!terms.length) return [];
+  const score = (hay, w) => terms.reduce((s, t) => s + (hay.includes(t) ? w : 0), 0);
+  const res = [];
+  for (const d of S.docs) { const s = score(d.title.toLowerCase(), 5) + score(d.tags.join(" ").toLowerCase(), 3) + score(docText(d).toLowerCase(), 1); if (s >= terms.length) res.push({ kind: "doc", s, d }); }
+  for (const t of S.tasks) { const s = score(t.title.toLowerCase(), 4) + score((t.notes || "").toLowerCase(), 1); if (s >= terms.length) res.push({ kind: "task", s, t }); }
+  for (const p of S.projects) { const s = score(p.name.toLowerCase(), 4) + score((p.goal || "").toLowerCase(), 1); if (s >= terms.length) res.push({ kind: "project", s, p }); }
+  return res.sort((a, b) => b.s - a.s).slice(0, 40);
+}
+function lineDiff(a, b) {
+  const x = a.split("\n"), y = b.split("\n"), n = x.length, m = y.length;
+  if (n * m > 4e6) return [{ t: "del", s: "(document too large to diff)" }];
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m) { if (x[i] === y[j]) { out.push({ t: "same", s: x[i] }); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) out.push({ t: "del", s: x[i++] }); else out.push({ t: "add", s: y[j++] }); }
+  while (i < n) out.push({ t: "del", s: x[i++] }); while (j < m) out.push({ t: "add", s: y[j++] });
+  return out;
+}
+
+/* ---------- metrics ---------- */
+function metrics(days = 30) {
+  const since = Date.now() - days * 864e5;
+  const done = S.tasks.filter((t) => t.status === "done" && t.completedAt >= since);
+  const onTime = done.filter((t) => t.due && t.completedAt <= parseDay(addDays(t.due, 1)).getTime());
+  const withDue = done.filter((t) => t.due);
+  const created = S.tasks.filter((t) => t.created >= since).length;
+  const open = S.tasks.filter((t) => t.status !== "done");
+  const runs = S.runs.filter((r) => r.ts >= since);
+  const byAgent = {};
+  for (const r of runs) { const a = (byAgent[r.agent] ||= { runs: 0, ms: 0, tok: 0, up: 0, down: 0, accepted: 0, errors: 0 }); a.runs++; a.ms += r.ms || 0; a.tok += (r.inTok || 0) + (r.outTok || 0); if (r.rating === 1) a.up++; if (r.rating === -1) a.down++; if (r.accepted) a.accepted++; if (r.error) a.errors++; }
+  return { done: done.length, created, onTimeRate: withDue.length ? Math.round(100 * onTime.length / withDue.length) : null, overdue: open.filter((t) => t.due && daysUntil(t.due) < 0).length, open: open.length, noDate: open.filter((t) => !t.due).length, noEffort: open.filter((t) => !t.effort).length, byAgent, runs: runs.length };
+}
+function insights(m) {
+  const tips = [];
+  if (m.overdue) tips.push(`${m.overdue} task(s) are overdue. Reschedule or drop them today; overdue items distort every plan.`);
+  if (m.noEffort > 3) tips.push(`${m.noEffort} open tasks have no effort estimate. The workload check is unreliable until you add them.`);
+  if (m.noDate > 5) tips.push(`${m.noDate} open tasks have no due date and will never surface in reminders. Date them or move them to a someday list.`);
+  if (m.onTimeRate != null && m.onTimeRate < 70) tips.push(`On-time completion is ${m.onTimeRate}%. Consider shorter planning horizons or padding estimates by 25%.`);
+  if (m.created > m.done * 1.5 && m.created > 5) tips.push(`You created ${m.created} tasks but completed ${m.done}. The backlog is growing; run a weekly review.`);
+  for (const [id, a] of Object.entries(m.byAgent)) {
+    const name = agentById(id)?.name || id;
+    if (a.down > a.up && a.down >= 2) tips.push(`${name} is rated negatively more than positively. Refine its system prompt in Settings or the agents/ folder.`);
+    if (a.errors > a.runs / 3) tips.push(`${name} fails often (${a.errors}/${a.runs}). Check the API key, model name and max tokens.`);
+    if (a.runs >= 3 && a.accepted / a.runs < 0.3) tips.push(`Few ${name} outputs are saved or imported (${a.accepted}/${a.runs}). Tighten the inputs you give it.`);
+  }
+  if (!tips.length) tips.push("No problems detected. Keep logging ratings so this panel can learn what works.");
+  return tips;
+}
+function weeklyDigest() {
+  const m = metrics(7), t = triage();
+  const lines = [`# Weekly review: week to ${fmtDay(today())}`, "", "## Summary", `- Completed: ${m.done}; created: ${m.created}; open: ${m.open}`, `- On-time rate: ${m.onTimeRate == null ? "n/a" : m.onTimeRate + "%"}; overdue now: ${m.overdue}`, `- Next 7 days: ${t.hours}h of work due against ${t.capacity}h capacity`, "", "## Needs attention"];
+  [...t.groups.overdue, ...t.groups.now].forEach((x) => lines.push(`- ${x.t.title} (${dueLabel(x.t.due)})`));
+  if (!t.groups.overdue.length && !t.groups.now.length) lines.push("- Nothing urgent.");
+  lines.push("", "## Agent use", ...(Object.entries(m.byAgent).length ? Object.entries(m.byAgent).map(([id, a]) => `- ${agentById(id)?.name || id}: ${a.runs} runs, ${a.accepted} used`) : ["- No agent runs this week."]), "", "## Suggested improvements", ...insights(metrics(30)).map((x) => "- " + x));
+  return lines.join("\n");
+}
+
+/* ---------- theme ---------- */
+function applyTheme() {
+  const s = S.settings, root = document.documentElement;
+  const dark = s.theme === "dark" || (s.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  root.dataset.theme = s.theme === "contrast" ? "contrast" : dark ? "dark" : "light";
+  root.dataset.density = s.density;
+  root.style.setProperty("--accent", s.accent);
+  const c = s.accent.replace("#", ""), lum = (0.299 * parseInt(c.slice(0, 2), 16) + 0.587 * parseInt(c.slice(2, 4), 16) + 0.114 * parseInt(c.slice(4, 6), 16)) / 255;
+  root.style.setProperty("--accent-ink", lum > 0.6 ? "#000" : "#fff");
+}
+
+/* ---------- dialogs ---------- */
+function dialog(title, body, actions = []) {
+  const d = el$("dlg"); d.replaceChildren(h("h3", {}, title), body, h("div", { class: "row", style: "margin-top:12px;justify-content:flex-end" }, ...actions, h("button", { onclick: () => d.close() }, "Close")));
+  d.showModal();
+}
+
+/* ---------- routing / chrome ---------- */
+const ROUTES = [
+  ["dashboard", "Dashboard"], ["tasks", "Tasks"], ["projects", "Projects"], ["calendar", "Calendar"],
+  ["agents", "AI agents"], ["library", "Library"], ["insights", "Insights"], ["settings", "Settings"], ["guide", "Guide"],
+];
+let route = "dashboard", routeArg = null;
+function go(r, arg) { location.hash = "#/" + r + (arg ? "/" + encodeURIComponent(arg) : ""); }
+function parseHash() { const [, r, a] = location.hash.split("/"); route = ROUTES.some(([k]) => k === r) || r === "search" ? r : "dashboard"; routeArg = a ? decodeURIComponent(a) : null; }
+function renderNav() {
+  const n = el$("nav"); const att = attentionCount();
+  n.replaceChildren(h("h1", {}, "Personal Workspace"),
+    ...ROUTES.map(([k, label]) => h("a", { href: "#/" + k, "aria-current": route === k ? "page" : null }, label, k === "dashboard" && att ? h("span", { class: "badge", "aria-label": att + " items need attention" }, att) : null)));
+}
+function pageHeader(title, ...extra) {
+  const q = h("input", { type: "search", placeholder: "Search everything", "aria-label": "Search everything", style: "max-width:260px", value: route === "search" ? routeArg || "" : "", onkeydown: (e) => { if (e.key === "Enter" && q.value.trim()) go("search", q.value.trim()); } });
+  return h("header", { class: "top" }, h("h2", {}, title), ...extra, q);
+}
+function render() {
+  parseHash(); applyTheme(); renderNav();
+  const m = el$("main"); m.replaceChildren();
+  const views = { dashboard: vDashboard, tasks: vTasks, projects: vProjects, calendar: vCalendar, agents: vAgents, library: vLibrary, insights: vInsights, settings: vSettings, guide: vGuide, search: vSearch };
+  m.append(views[route]());
+}
+
+/* ---------- shared widgets ---------- */
+function taskRow(t, { showProject = true } = {}) {
+  const p = S.projects.find((x) => x.id === t.projectId), d = t.due ? daysUntil(t.due) : null;
+  return h("li", { class: t.status === "done" ? "done" : "" },
+    h("input", { type: "checkbox", checked: t.status === "done", "aria-label": "Done: " + t.title, onchange: (e) => { setStatus(t, e.target.checked ? "done" : "todo"); render(); } }),
+    h("div", { class: "grow" }, h("div", { class: "t" }, t.title),
+      h("div", { class: "small muted" }, [showProject && p ? p.name : null, t.effort ? t.effort + "h" : null, t.priority === 3 ? "High" : t.priority === 1 ? "Low" : null].filter(Boolean).join(" · "))),
+    t.due ? h("span", { class: "tag " + (t.status !== "done" && d < 0 ? "bad" : t.status !== "done" && d <= 1 ? "warn" : "") }, t.status === "done" ? fmtDay(t.due) : dueLabel(t.due)) : null,
+    h("button", { class: "link", onclick: () => editTask(t) }, "Edit"));
+}
+function editTask(t) {
+  const isNew = !t; t = t || newTask({});
+  const f = { title: h("input", { value: t.title, id: "tt" }), due: h("input", { type: "date", value: t.due }), effort: h("input", { type: "number", min: "0", step: "0.5", value: t.effort }),
+    priority: h("select", {}, ...[[3, "High"], [2, "Normal"], [1, "Low"]].map(([v, l]) => h("option", { value: v, selected: v === t.priority }, l))),
+    project: h("select", {}, h("option", { value: "" }, "No project"), ...S.projects.map((p) => h("option", { value: p.id, selected: p.id === t.projectId }, p.name))),
+    status: h("select", {}, ...[["todo", "To do"], ["doing", "In progress"], ["done", "Done"]].map(([v, l]) => h("option", { value: v, selected: v === t.status }, l))),
+    notes: h("textarea", { value: t.notes }) };
+  const body = h("div", {}, h("label", { for: "tt" }, "Title"), f.title, h("div", { class: "add-del" }, h("div", {}, h("label", {}, "Due date"), f.due), h("div", {}, h("label", {}, "Effort (hours)"), f.effort), h("div", {}, h("label", {}, "Priority"), f.priority), h("div", {}, h("label", {}, "Status"), f.status)), h("label", {}, "Project"), f.project, h("label", {}, "Notes"), f.notes);
+  dialog(isNew ? "New task" : "Edit task", body, [
+    !isNew && h("button", { class: "danger", onclick: () => { S.tasks = S.tasks.filter((x) => x !== t); save(); el$("dlg").close(); render(); } }, "Delete"),
+    h("button", { class: "primary", onclick: () => {
+      if (!f.title.value.trim()) return toast("Title is required");
+      Object.assign(t, { title: f.title.value.trim(), due: f.due.value, effort: f.effort.value ? Number(f.effort.value) : "", priority: +f.priority.value, projectId: f.project.value, notes: f.notes.value });
+      if (t.status !== f.status.value) { t.status = f.status.value; t.completedAt = t.status === "done" ? Date.now() : null; }
+      if (isNew) S.tasks.push(t); save(); el$("dlg").close(); render();
+    } }, "Save")]);
+  setTimeout(() => f.title.focus(), 30);
+}
+function quickAdd() {
+  const i = h("input", { placeholder: "Add a task, e.g. Send draft to client", "aria-label": "Quick add task" }), d = h("input", { type: "date", "aria-label": "Due date", style: "max-width:160px" });
+  const add = () => { if (!i.value.trim()) return; S.tasks.push(newTask({ title: i.value.trim(), due: d.value })); save(); render(); };
+  i.addEventListener("keydown", (e) => e.key === "Enter" && add());
+  return h("div", { class: "row" }, i, d, h("button", { class: "primary", onclick: add }, "Add"));
+}
+
+/* ---------- views ---------- */
+const WIDGETS = {
+  attention: ["Needs attention", () => {
+    const g = triage().groups, items = [...g.overdue, ...g.now].slice(0, 6);
+    return items.length ? h("ul", { class: "list" }, items.map((x) => taskRow(x.t))) : h("p", { class: "muted" }, "Nothing overdue or due within 48 hours.");
+  }],
+  upcoming: ["Next 14 days", () => {
+    const items = [...S.tasks.filter((t) => t.status !== "done" && t.due && daysUntil(t.due) >= 0 && daysUntil(t.due) <= 14).map((t) => ({ d: t.due, t })), ...S.events.filter((e) => daysUntil(e.start) >= 0 && daysUntil(e.start) <= 14 && !S.tasks.some((t) => t.icsKey === e.key)).map((e) => ({ d: e.start, e }))].sort((a, b) => a.d.localeCompare(b.d)).slice(0, 10);
+    return items.length ? h("ul", { class: "list" }, items.map((x) => x.t ? taskRow(x.t) : h("li", {}, h("div", { class: "grow" }, x.e.title, h("div", { class: "small muted" }, "Calendar" + (x.e.time ? " · " + x.e.time : ""))), h("span", { class: "tag" }, dueLabel(x.e.start))))) : h("p", { class: "muted" }, "No deadlines or events in the next two weeks.");
+  }],
+  workload: ["Workload, next 7 days", () => {
+    const t = triage(), pct = Math.min(100, t.capacity ? Math.round(100 * t.hours / t.capacity) : 0), over = t.hours > t.capacity;
+    return h("div", {}, h("div", { class: "row between" }, h("strong", {}, `${t.hours}h due`), h("span", { class: "muted" }, `${t.capacity}h capacity`)), h("div", { class: "bar" + (over ? " over" : ""), role: "img", "aria-label": `${pct}% of capacity` }, h("i", { style: `width:${pct}%` })),
+      h("p", { class: "small " + (over ? "" : "muted"), style: over ? "color:var(--bad)" : "" }, over ? `Overloaded by ${t.hours - t.capacity}h. Ask the Deadline agent to replan.` : "Within capacity."),
+      t.missingEffort ? h("p", { class: "small muted" }, `${t.missingEffort} open task(s) have no effort estimate, so this figure is understated.`) : null,
+      t.crowded.length ? h("p", { class: "small muted" }, "Crowded days: " + t.crowded.map((c) => `${fmtDay(c.d)} (${c.n})`).join(", ")) : null);
+  }],
+  projects: ["Projects", () => {
+    const ps = S.projects.filter((p) => p.status !== "done");
+    return ps.length ? h("div", { class: "stack" }, ps.map((p) => h("div", {}, h("div", { class: "row between" }, h("a", { href: "#/projects" }, p.name), h("span", { class: "small muted" }, p.due ? dueLabel(p.due) : "")), h("div", { class: "bar" }, h("i", { style: `width:${projectProgress(p)}%` })))))
+      : h("p", { class: "muted" }, "No active projects. Create one or ask the Project Drafting agent.");
+  }],
+  agents: ["Agents", () => h("div", { class: "row" }, activeAgents().map((a) => h("button", { onclick: () => go("agents", a.id) }, a.name)))],
+  digest: ["Progress", () => {
+    const m = metrics(7);
+    return h("div", {}, h("div", { class: "row" }, h("span", { class: "tag ok" }, `${m.done} done this week`), h("span", { class: "tag" }, `${m.runs} agent runs`), m.onTimeRate != null ? h("span", { class: "tag" }, `${m.onTimeRate}% on time`) : null),
+      h("p", { class: "small muted" }, insights(metrics(30))[0]), h("button", { onclick: () => { const d = addDoc(`Weekly review ${today()}`, weeklyDigest(), ["review"], "Generated"); S.lastDigest = today(); save(); toast("Saved to Library"); go("library", d.id); } }, "Generate weekly review"));
+  }],
+};
+function vOnboarding() {
+  if (S.settings.onboardingDismissed) return null;
+  const steps = [
+    ["Add your first task", S.tasks.length > 0, () => editTask()], ["Create a project", S.projects.length > 0, () => go("projects")],
+    ["Import a calendar (.ics) or skip", S.events.length > 0, () => go("calendar")], ["Add an API key to run agents live (optional)", !!S.settings.apiKey, () => go("settings")],
+    ["Run an agent or copy its prompt", S.runs.length > 0, () => go("agents")], ["Export a backup", !!S.settings.backedUp, () => go("settings")],
+  ];
+  const done = steps.filter((s) => s[1]).length;
+  return h("section", { class: "card wide" }, h("div", { class: "row between" }, h("h3", {}, `Getting started (${done}/${steps.length})`), h("div", { class: "row" }, h("button", { onclick: () => go("guide") }, "Open guide"), h("button", { onclick: () => { S.settings.onboardingDismissed = true; save(); render(); } }, "Dismiss"))),
+    h("ul", { class: "list" }, steps.map(([l, ok, fn]) => h("li", {}, h("span", { class: "tag " + (ok ? "ok" : "") }, ok ? "Done" : "To do"), h("div", { class: "grow" }, l), ok ? null : h("button", { class: "link", onclick: fn }, "Go")))));
+}
+function vDashboard() {
+  const wrap = h("div", { class: "stack" });
+  wrap.append(pageHeader("Dashboard", h("button", { class: "primary", onclick: () => editTask() }, "New task")));
+  const overdue = triage().overdueCount; if (overdue) wrap.append(h("div", { class: "banner", role: "alert" }, `${overdue} overdue task(s). `, h("button", { class: "link", onclick: () => go("tasks") }, "Review them")));
+  wrap.append(h("div", { class: "card" }, quickAdd()));
+  const ob = vOnboarding(); if (ob) wrap.append(ob);
+  const g = h("div", { class: "grid" });
+  for (const id of S.settings.widgets) { if (S.settings.hiddenWidgets.includes(id) || !WIDGETS[id]) continue; g.append(h("section", { class: "card" }, h("h3", {}, WIDGETS[id][0]), WIDGETS[id][1]())); }
+  wrap.append(g); return wrap;
+}
+let taskFilter = { status: "open", project: "", q: "" };
+function vTasks() {
+  const wrap = h("div", { class: "stack" });
+  wrap.append(pageHeader("Tasks", h("button", { class: "primary", onclick: () => editTask() }, "New task")));
+  const sel = (key, opts) => h("select", { "aria-label": key, onchange: (e) => { taskFilter[key] = e.target.value; render(); } }, opts.map(([v, l]) => h("option", { value: v, selected: taskFilter[key] === v }, l)));
+  const list = S.tasks.filter((t) => (taskFilter.status === "all" || (taskFilter.status === "open" ? t.status !== "done" : t.status === taskFilter.status)) && (!taskFilter.project || t.projectId === taskFilter.project))
+    .sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999") || b.priority - a.priority);
+  wrap.append(h("div", { class: "card" }, h("div", { class: "row" }, sel("status", [["open", "Open"], ["todo", "To do"], ["doing", "In progress"], ["done", "Done"], ["all", "All"]]), sel("project", [["", "All projects"], ...S.projects.map((p) => [p.id, p.name])]), h("span", { class: "muted small" }, list.length + " tasks")),
+    list.length ? h("ul", { class: "list" }, list.map((t) => taskRow(t))) : h("p", { class: "muted" }, "No tasks match.")));
+  return wrap;
+}
+function editProject(p) {
+  const isNew = !p; p = p || { id: uid(), name: "", goal: "", due: "", status: "active" };
+  const f = { name: h("input", { value: p.name }), goal: h("textarea", { value: p.goal }), due: h("input", { type: "date", value: p.due }), status: h("select", {}, ...["active", "on hold", "done"].map((v) => h("option", { value: v, selected: v === p.status }, v))) };
+  dialog(isNew ? "New project" : "Edit project", h("div", {}, h("label", {}, "Name"), f.name, h("label", {}, "Goal"), f.goal, h("label", {}, "Due date"), f.due, h("label", {}, "Status"), f.status), [
+    !isNew && h("button", { class: "danger", onclick: () => { S.projects = S.projects.filter((x) => x !== p); S.tasks.forEach((t) => { if (t.projectId === p.id) t.projectId = ""; }); save(); el$("dlg").close(); render(); } }, "Delete"),
+    h("button", { class: "primary", onclick: () => { if (!f.name.value.trim()) return toast("Name is required"); Object.assign(p, { name: f.name.value.trim(), goal: f.goal.value, due: f.due.value, status: f.status.value }); if (isNew) S.projects.push(p); save(); el$("dlg").close(); render(); } }, "Save")]);
+}
+function vProjects() {
+  const wrap = h("div", { class: "stack" });
+  wrap.append(pageHeader("Projects", h("button", { class: "primary", onclick: () => editProject() }, "New project"), h("button", { onclick: () => go("agents", "drafter") }, "Draft with AI")));
+  if (!S.projects.length) wrap.append(h("div", { class: "card muted" }, "No projects yet."));
+  const g = h("div", { class: "grid" });
+  for (const p of S.projects) {
+    const ts = S.tasks.filter((t) => t.projectId === p.id);
+    g.append(h("section", { class: "card" }, h("div", { class: "row between" }, h("h3", {}, p.name), h("span", { class: "tag" }, p.status)), p.goal ? h("p", { class: "small muted" }, p.goal) : null,
+      h("div", { class: "bar" }, h("i", { style: `width:${projectProgress(p)}%` })), h("p", { class: "small muted" }, `${ts.filter((t) => t.status === "done").length}/${ts.length} tasks done` + (p.due ? ` · due ${fmtDay(p.due)}` : "")),
+      h("ul", { class: "list" }, ts.filter((t) => t.status !== "done").slice(0, 5).map((t) => taskRow(t, { showProject: false }))), h("div", { class: "row" }, h("button", { onclick: () => editProject(p) }, "Edit"), h("button", { onclick: () => { taskFilter.project = p.id; taskFilter.status = "open"; go("tasks"); } }, "All tasks"))));
+  }
+  wrap.append(g); return wrap;
+}
+function vCalendar() {
+  const wrap = h("div", { class: "stack" }); wrap.append(pageHeader("Calendar"));
+  wrap.append(h("div", { class: "card" }, h("h3", {}, "Import"), h("p", { class: "small muted" }, "Export an .ics file from Google Calendar, Outlook or Apple Calendar and import it here. Events whose title matches your deadline pattern (Settings) also become tasks. Recurring events are not expanded; only their first date is imported."),
+    h("div", { class: "row" }, h("button", { class: "primary", onclick: async () => { const f = await pickFile(".ics,text/calendar"); if (!f) return; const r = importICS(await readText(f)); toast(`${r.added} new event(s), ${r.tasks} task(s)` + (r.recurring ? `, ${r.recurring} recurring (first date only)` : "")); render(); } }, "Import .ics file"),
+      h("button", { onclick: () => { if (!S.tasks.some((t) => t.due && t.status !== "done")) return toast("No dated open tasks to export"); download("workspace-deadlines.ics", exportICS(), "text/calendar"); } }, "Export deadlines (.ics)")),
+    h("p", { class: "small muted" }, "Exported deadlines include 3-day and 1-day alarms, so your calendar app alerts you even when this page is closed. Importing the file into a calendar again adds duplicates; re-export only when needed.")));
+  const ev = S.events.filter((e) => daysUntil(e.start) >= 0).sort((a, b) => a.start.localeCompare(b.start));
+  wrap.append(h("div", { class: "card" }, h("div", { class: "row between" }, h("h3", {}, `Upcoming imported events (${ev.length})`), S.events.length ? h("button", { class: "danger", onclick: () => { if (confirm("Remove all imported events? Tasks created from them are kept.")) { S.events = []; save(); render(); } } }, "Clear events") : null),
+    ev.length ? h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Date"), h("th", {}, "Time"), h("th", {}, "Event"))), h("tbody", {}, ev.slice(0, 60).map((e) => h("tr", {}, h("td", {}, fmtDay(e.start)), h("td", {}, e.time || "All day"), h("td", {}, e.title))))) : h("p", { class: "muted" }, "No imported events.")));
+  wrap.append(h("div", { class: "card" }, h("h3", {}, "Live two-way sync"), h("p", { class: "small muted" }, "This static app cannot hold a Google or Microsoft login securely. For live sync, connect a calendar to an automation (Make or Zapier) that writes to your task list; see docs/ARCHITECTURE.md, section Integrations.")));
+  return wrap;
+}
+
+/* agents view */
+function vAgents() {
+  const agents = activeAgents(); const wrap = h("div", { class: "stack" });
+  wrap.append(pageHeader("AI agents"));
+  const cur = agents.find((a) => a.id === routeArg) || null;
+  wrap.append(h("div", { class: "row" }, agents.map((a) => h("button", { class: cur?.id === a.id ? "primary" : "", onclick: () => go("agents", a.id) }, a.name))));
+  if (!cur) {
+    wrap.append(h("div", { class: "grid" }, agents.map((a) => h("section", { class: "card" }, h("h3", {}, a.name), h("p", { class: "small muted" }, a.description), h("button", { onclick: () => go("agents", a.id) }, "Open")))));
+    if (!S.settings.apiKey) wrap.append(h("div", { class: "card small muted" }, "No API key set: agents run in Prompt Pack mode. You get the complete system prompt and message to paste into Claude. Add a key in Settings to run them here."));
+    return wrap;
+  }
+  const values = {}; let ctx = !!cur.includeContext; let last = null, runRec = null;
+  const form = h("div", { class: "card" }, h("h3", {}, cur.name), h("p", { class: "small muted" }, cur.description));
+  for (const f of cur.fields) {
+    const inp = f.type === "select" ? h("select", { id: "f-" + f.key }, f.options.map((o) => h("option", { value: o, selected: o === f.default }, o))) : f.type === "textarea" ? h("textarea", { id: "f-" + f.key, placeholder: f.placeholder || "" }) : h("input", { id: "f-" + f.key, placeholder: f.placeholder || "" });
+    values[f.key] = () => inp.value; form.append(h("label", { for: "f-" + f.key }, f.label), inp);
+  }
+  const ctxBox = h("input", { type: "checkbox", checked: ctx, onchange: (e) => (ctx = e.target.checked) });
+  form.append(h("p", {}, h("label", { class: "inline" }, ctxBox, "Include workspace snapshot (tasks, projects, events)")));
+  const out = h("div", { class: "stack" });
+  const collect = () => Object.fromEntries(Object.entries(values).map(([k, fn]) => [k, fn()]));
+  const log = (rec) => { runRec = { id: uid(), agent: cur.id, ts: Date.now(), ...rec }; S.runs.push(runRec); if (S.runs.length > 500) S.runs.splice(0, S.runs.length - 500); save(); return runRec; };
+  const showOut = (res) => {
+    out.replaceChildren(); last = res;
+    if (res.truncated) out.append(h("div", { class: "banner" }, "The reply hit the max token limit and may be cut off. Raise it in Settings."));
+    out.append(mdBox(res.text));
+    const tasks = cur.emitsTasks && extractBlock(res.text, "workspace-tasks")?.filter((x) => x && typeof x.title === "string" && x.title.trim()), ups = cur.emitsUpdates && extractBlock(res.text, "workspace-updates")?.filter((u) => S.tasks.some((t) => t.id === u?.id));
+    const proj = cur.emitsTasks ? S.projects : [];
+    const projSel = h("select", { "aria-label": "Project for imported tasks", style: "max-width:220px" }, h("option", { value: "" }, "No project"), h("option", { value: "__new" }, "New project from this draft"), ...proj.map((p) => h("option", { value: p.id }, p.name)));
+    out.append(h("div", { class: "row" },
+      h("button", { onclick: () => { addDoc(`${cur.name}: ${today()} ${(values[cur.fields[1]?.key]?.() || "").slice(0, 40)}`.trim(), res.text, [cur.id], "Agent output"); if (runRec) runRec.accepted = true; save(); toast("Saved to Library"); } }, "Save to Library"),
+      h("button", { onclick: () => copy(res.text) }, "Copy"),
+      tasks?.length ? [projSel, h("button", { class: "primary", onclick: () => { let pid = projSel.value; if (pid === "__new") { const name = (values.idea?.() || "New project").slice(0, 60); const p = { id: uid(), name, goal: values.idea?.() || "", due: values.end?.() || "", status: "active" }; if (!validDay(p.due)) p.due = ""; S.projects.push(p); pid = p.id; } const n = importTasks(tasks, pid); if (runRec) runRec.accepted = true; save(); toast(`${n} task(s) imported`); render(); } }, `Import ${tasks.length} task(s)`)] : null,
+      ups?.length ? h("button", { class: "primary", onclick: () => { const n = applyUpdates(ups); if (runRec) runRec.accepted = true; save(); toast(`${n} update(s) applied`); render(); } }, `Apply ${ups.length} proposed change(s)`) : null,
+      h("span", { class: "muted small" }, "Was it useful?"), h("button", { onclick: () => { if (runRec) { runRec.rating = 1; save(); toast("Thanks"); } } }, "Yes"), h("button", { onclick: () => { if (runRec) { runRec.rating = -1; save(); toast("Noted"); } } }, "No")));
+    if (ups?.length) out.append(h("details", {}, h("summary", {}, "Review proposed changes"), h("pre", { class: "raw" }, ups.map((u) => `${S.tasks.find((t) => t.id === u.id)?.title || "(unknown id " + u.id + ")"}: ${JSON.stringify({ ...u, id: undefined })}`).join("\n"))));
+    out.append(h("p", { class: "small muted" }, `${res.ms ? (res.ms / 1000).toFixed(1) + "s · " : ""}${res.inTok + res.outTok ? res.inTok + " in / " + res.outTok + " out tokens" : ""}  Check facts before use.`));
+  };
+  const promptPack = () => { const p = buildPrompt(cur, collect(), ctx); dialog("Prompt Pack", h("div", {}, h("p", { class: "small muted" }, "Paste the system prompt as the system/instructions field (or the first message) and the message below it into Claude or any compatible assistant."), h("label", {}, "System prompt"), h("pre", { class: "raw" }, p.system), h("label", {}, "Message"), h("pre", { class: "raw" }, p.user)), [h("button", { class: "primary", onclick: () => copy(`${p.system}\n\n---\n\n${p.user}`, "Prompt copied") }, "Copy both")]); log({ mode: "pack" }); };
+  const run = h("button", { class: "primary", disabled: !S.settings.apiKey, onclick: async () => {
+    const p = buildPrompt(cur, collect(), ctx); run.disabled = true; out.replaceChildren(h("p", { class: "muted", role: "status" }, "Running..."));
+    try { const res = await callClaude(p.system, p.user); log({ mode: "api", ms: res.ms, inTok: res.inTok, outTok: res.outTok }); showOut(res); }
+    catch (e) { log({ mode: "api", error: true }); out.replaceChildren(h("div", { class: "banner", role: "alert" }, "Run failed: " + e.message + (/fetch|network/i.test(e.message) ? ". Check your connection or any ad blocker." : ""))); }
+    finally { run.disabled = !S.settings.apiKey; }
+  } }, "Run agent");
+  form.append(h("div", { class: "row", style: "margin-top:12px" }, run, h("button", { onclick: promptPack }, "Prompt Pack (copy)")), !S.settings.apiKey ? h("p", { class: "small muted" }, "Add an API key in Settings to enable Run.") : null,
+    cur.id === "deadlines" ? h("div", { style: "margin-top:12px" }, h("button", { onclick: () => { const t = triage(); dialog("Local triage (no AI)", h("div", {}, ["overdue", "now", "week", "later"].map((k) => h("div", {}, h("h3", {}, { overdue: "Overdue", now: "Do now (48h)", week: "This week", later: "Later" }[k] + ` (${t.groups[k].length})`), t.groups[k].length ? h("ul", { class: "list" }, t.groups[k].slice(0, 12).map((x) => taskRow(x.t))) : h("p", { class: "muted small" }, "None"))))); } }, "Run local triage (offline)")) : null);
+  wrap.append(h("div", { class: "split" }, form, out)); return wrap;
+}
+
+/* library */
+let libQ = "";
+function vLibrary() {
+  const wrap = h("div", { class: "stack" });
+  wrap.append(pageHeader("Library", h("button", { class: "primary", onclick: () => { const d = addDoc("Untitled", "", [], "Created"); go("library", d.id); } }, "New document"),
+    h("button", { onclick: async () => { const f = await pickFile(".md,.txt,.markdown,.csv,.json,text/*"); if (!f) return; const d = addDoc(f.name.replace(/\.[^.]+$/, ""), await readText(f), ["imported"], "Imported " + f.name); toast("Imported"); go("library", d.id); } }, "Import text file")));
+  const doc = S.docs.find((d) => d.id === routeArg);
+  if (doc) { wrap.append(docEditor(doc)); return wrap; }
+  const q = h("input", { type: "search", placeholder: "Filter documents by title, tag or text", value: libQ, "aria-label": "Filter documents", oninput: () => { libQ = q.value; const keep = q.selectionStart; render(); const n = $('[aria-label="Filter documents"]'); n.focus(); n.setSelectionRange(keep, keep); } });
+  const terms = libQ.toLowerCase().split(/\s+/).filter(Boolean);
+  const docs = S.docs.filter((d) => terms.every((t) => (d.title + " " + d.tags.join(" ") + " " + docText(d)).toLowerCase().includes(t)));
+  wrap.append(h("div", { class: "card" }, q, docs.length ? h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Title"), h("th", {}, "Tags"), h("th", {}, "Versions"), h("th", {}, "Updated"))), h("tbody", {}, docs.map((d) => h("tr", {}, h("td", {}, h("a", { href: "#/library/" + d.id }, d.title || "Untitled")), h("td", {}, d.tags.map((t) => h("span", { class: "tag" }, t))), h("td", {}, d.versions.length), h("td", {}, new Date(d.versions[d.versions.length - 1].ts).toLocaleDateString("en-GB")))))) : h("p", { class: "muted" }, S.docs.length ? "No match." : "Empty. Agent outputs, weekly reviews and imported files are stored here with version history.")));
+  return wrap;
+}
+function docEditor(doc) {
+  const title = h("input", { value: doc.title, "aria-label": "Title" }), tags = h("input", { value: doc.tags.join(", "), placeholder: "tags, comma separated", "aria-label": "Tags" }), body = h("textarea", { value: docText(doc), style: "min-height:50vh;font-family:ui-monospace,monospace", "aria-label": "Content" }), note = h("input", { placeholder: "Version note (optional)", "aria-label": "Version note" });
+  const preview = h("div", {});
+  return h("div", { class: "stack" }, h("div", { class: "card" }, h("label", {}, "Title"), title, h("label", {}, "Tags"), tags, h("label", {}, "Content (Markdown)"), body, h("div", { class: "row", style: "margin-top:10px" }, note,
+    h("button", { class: "primary", onclick: () => { doc.title = title.value.trim() || "Untitled"; doc.tags = tags.value.split(",").map((s) => s.trim()).filter(Boolean); const ch = saveDoc(doc, body.value, note.value); save(); toast(ch ? `Saved as version ${doc.versions.length}` : "Saved (content unchanged)"); render(); } }, "Save version"),
+    h("button", { onclick: () => { preview.replaceChildren(mdBox(body.value)); } }, "Preview"), h("button", { onclick: () => historyDialog(doc) }, `History (${doc.versions.length})`), h("button", { onclick: () => download((doc.title || "document").replace(/[^\w-]+/g, "_") + ".md", body.value, "text/markdown") }, "Download .md"),
+    h("button", { class: "danger", onclick: () => { if (confirm("Delete this document and its history?")) { S.docs = S.docs.filter((d) => d !== doc); save(); go("library"); } } }, "Delete"))), preview);
+}
+function historyDialog(doc) {
+  const list = h("div", {}), vs = doc.versions;
+  const show = (i) => { const diff = lineDiff(i > 0 ? vs[i - 1].content : "", vs[i].content); list.querySelector(".dv")?.remove(); list.append(h("div", { class: "dv" }, h("div", { class: "row between" }, h("strong", {}, `Version ${i + 1} vs previous`), h("button", { onclick: () => { saveDoc(doc, vs[i].content, `Restored version ${i + 1}`); save(); el$("dlg").close(); render(); toast("Restored as a new version"); } }, "Restore this version")), h("div", { class: "diff out" }, diff.map((d) => h("div", { class: d.t === "same" ? "" : d.t }, (d.t === "add" ? "+ " : d.t === "del" ? "- " : "  ") + d.s))))); };
+  list.append(h("ul", { class: "list" }, vs.map((v, i) => h("li", {}, h("div", { class: "grow" }, `Version ${i + 1}`, h("div", { class: "small muted" }, new Date(v.ts).toLocaleString("en-GB") + (v.note ? " · " + v.note : ""))), h("button", { class: "link", onclick: () => show(i) }, "Compare"))).reverse()));
+  dialog(`History: ${doc.title}`, list);
+}
+function vSearch() {
+  const wrap = h("div", { class: "stack" }); wrap.append(pageHeader("Search: " + (routeArg || "")));
+  const res = search(routeArg || "");
+  wrap.append(h("div", { class: "card" }, res.length ? h("ul", { class: "list" }, res.map((r) => h("li", {}, h("span", { class: "tag" }, r.kind), h("div", { class: "grow" }, r.kind === "doc" ? h("a", { href: "#/library/" + r.d.id }, r.d.title) : r.kind === "task" ? h("a", { href: "#/tasks", onclick: () => setTimeout(() => editTask(r.t), 50) }, r.t.title) : h("a", { href: "#/projects" }, r.p.name))))) : h("p", { class: "muted" }, "No results.")));
+  return wrap;
+}
+
+/* insights */
+function vInsights() {
+  const wrap = h("div", { class: "stack" }); wrap.append(pageHeader("Insights"));
+  const m = metrics(30), tile = (v, l) => h("div", { class: "card" }, h("div", { style: "font-size:28px;font-weight:700" }, v), h("div", { class: "small muted" }, l));
+  wrap.append(h("div", { class: "grid" }, tile(m.done, "Tasks completed (30 days)"), tile(m.onTimeRate == null ? "n/a" : m.onTimeRate + "%", "Completed on time"), tile(m.overdue, "Overdue now"), tile(m.runs, "Agent runs (30 days)")));
+  wrap.append(h("div", { class: "card" }, h("h3", {}, "Recommendations"), h("ul", {}, insights(m).map((t) => h("li", {}, t)))));
+  const rows = Object.entries(m.byAgent);
+  wrap.append(h("div", { class: "card" }, h("h3", {}, "Agent effectiveness (30 days)"), rows.length ? h("table", {}, h("thead", {}, h("tr", {}, ["Agent", "Runs", "Used", "Useful / not", "Avg time", "Tokens", "Errors"].map((x) => h("th", {}, x)))), h("tbody", {}, rows.map(([id, a]) => h("tr", {}, h("td", {}, agentById(id)?.name || id), h("td", {}, a.runs), h("td", {}, `${a.accepted} (${Math.round(100 * a.accepted / a.runs)}%)`), h("td", {}, `${a.up} / ${a.down}`), h("td", {}, a.ms ? (a.ms / a.runs / 1000).toFixed(1) + "s" : "n/a"), h("td", {}, a.tok || "n/a"), h("td", {}, a.errors))))) : h("p", { class: "muted" }, "No runs yet. Use the agents, then rate the output with Yes or No."),
+    h("p", { class: "small muted" }, "Used = saved to Library, tasks imported or changes applied. Prompt Pack runs are counted but have no timing or token data.")));
+  wrap.append(h("div", { class: "card" }, h("button", { onclick: () => { const d = addDoc(`Weekly review ${today()}`, weeklyDigest(), ["review"], "Generated"); toast("Saved to Library"); go("library", d.id); } }, "Generate weekly review document")));
+  return wrap;
+}
+
+/* settings */
+function vSettings() {
+  const s = S.settings, wrap = h("div", { class: "stack" }); wrap.append(pageHeader("Settings"));
+  const upd = (fn) => (e) => { fn(e.target); save(); applyTheme(); };
+  const secs = [];
+  secs.push(h("section", { class: "card" }, h("h3", {}, "Appearance"), h("label", {}, "Theme"),
+    h("select", { onchange: upd((t) => (s.theme = t.value)) }, [["auto", "Match system"], ["light", "Light"], ["dark", "Dark"], ["contrast", "High contrast"]].map(([v, l]) => h("option", { value: v, selected: s.theme === v }, l))),
+    h("label", {}, "Density"), h("select", { onchange: upd((t) => (s.density = t.value)) }, ["comfortable", "compact"].map((v) => h("option", { value: v, selected: s.density === v }, v))),
+    h("label", {}, "Accent colour"), h("input", { type: "color", value: s.accent, oninput: upd((t) => (s.accent = t.value)), style: "width:80px;padding:2px" })));
+  secs.push(h("section", { class: "card" }, h("h3", {}, "Dashboard layout"), h("p", { class: "small muted" }, "Show, hide and reorder widgets."),
+    h("ul", { class: "list" }, s.widgets.map((id, i) => h("li", {}, h("label", { class: "inline grow" }, h("input", { type: "checkbox", checked: !s.hiddenWidgets.includes(id), onchange: (e) => { s.hiddenWidgets = e.target.checked ? s.hiddenWidgets.filter((x) => x !== id) : [...s.hiddenWidgets, id]; save(); } }), WIDGETS[id]?.[0] || id),
+      h("button", { disabled: i === 0, "aria-label": "Move up", onclick: () => { [s.widgets[i - 1], s.widgets[i]] = [s.widgets[i], s.widgets[i - 1]]; save(); render(); } }, "Up"), h("button", { disabled: i === s.widgets.length - 1, "aria-label": "Move down", onclick: () => { [s.widgets[i + 1], s.widgets[i]] = [s.widgets[i], s.widgets[i + 1]]; save(); render(); } }, "Down"))))));
+  const agentList = h("ul", { class: "list" }, allAgents().map((a) => h("li", {}, h("label", { class: "inline grow" }, h("input", { type: "checkbox", checked: !s.disabledAgents.includes(a.id), onchange: (e) => { s.disabledAgents = e.target.checked ? s.disabledAgents.filter((x) => x !== a.id) : [...s.disabledAgents, a.id]; save(); } }), a.name, a.custom ? h("span", { class: "tag" }, "custom") : null),
+    a.custom ? [h("button", { onclick: () => customAgentDialog(S.customAgents.find((c) => c.id === a.id)) }, "Edit"), h("button", { class: "danger", onclick: () => { if (confirm("Delete this agent?")) { S.customAgents = S.customAgents.filter((c) => c.id !== a.id); save(); render(); } } }, "Delete")] : h("button", { onclick: () => dialog(a.name + ": system prompt", h("pre", { class: "raw" }, a.system), [h("button", { onclick: () => copy(a.system) }, "Copy")]) }, "View prompt"))));
+  secs.push(h("section", { class: "card" }, h("h3", {}, "Agents"), h("p", { class: "small muted" }, "Disable agents you do not use, or add your own. Built-in prompts live in agents/*.md and are compiled in by the build script."), agentList, h("button", { onclick: () => customAgentDialog() }, "Add custom agent")));
+  const key = h("input", { type: "password", value: s.apiKey, autocomplete: "off", placeholder: "sk-ant-...", oninput: upd((t) => (s.apiKey = t.value.trim())) });
+  secs.push(h("section", { class: "card" }, h("h3", {}, "AI connection"), h("p", { class: "small muted" }, "Optional. Your Anthropic API key is stored only in this browser and sent only to api.anthropic.com. Anyone with access to this browser profile can read it, and it is excluded from backups. Use a key with a spend limit."),
+    h("label", {}, "API key"), key, h("label", {}, "Model ID"), h("input", { value: s.model, oninput: upd((t) => (s.model = t.value.trim())) }), h("label", {}, "Max output tokens"), h("input", { type: "number", min: "500", max: "16000", value: s.maxTokens, oninput: upd((t) => (s.maxTokens = Number(t.value))) })));
+  secs.push(h("section", { class: "card" }, h("h3", {}, "Reminders and capacity"),
+    h("label", {}, "Remind me this many days before a deadline"), h("div", { class: "row" }, [7, 3, 2, 1, 0].map((d) => h("label", { class: "inline" }, h("input", { type: "checkbox", checked: s.leadDays.includes(d), onchange: (e) => { s.leadDays = e.target.checked ? [...new Set([...s.leadDays, d])] : s.leadDays.filter((x) => x !== d); save(); } }), d === 0 ? "On the day" : d + "d"))),
+    h("p", {}, h("label", { class: "inline" }, h("input", { type: "checkbox", checked: s.notify, onchange: async (e) => { if (e.target.checked && "Notification" in window) { const p = await Notification.requestPermission(); s.notify = p === "granted"; if (!s.notify) { e.target.checked = false; toast("Browser notifications were blocked"); } } else s.notify = false; save(); } }), "Also show browser notifications (only while this page is open)")),
+    h("label", {}, "Working hours per weekday"), h("input", { type: "number", min: "1", max: "16", step: "0.5", value: s.hoursPerDay, oninput: upd((t) => (s.hoursPerDay = Number(t.value) || 6)) }),
+    h("label", {}, "Calendar events that become tasks (regular expression)"), h("input", { value: s.icsDeadlineRegex, oninput: upd((t) => (s.icsDeadlineRegex = t.value)) })));
+  secs.push(h("section", { class: "card" }, h("h3", {}, "Data"), h("p", { class: "small muted" }, "All data lives in this browser. Back up regularly; clearing site data deletes it."),
+    h("div", { class: "row" }, h("button", { class: "primary", onclick: () => { download(`workspace-backup-${today()}.json`, JSON.stringify(exportable(), null, 1), "application/json"); S.settings.backedUp = true; save(); } }, "Export backup"), h("button", { onclick: encryptedExport }, "Export encrypted"), h("button", { onclick: importBackup }, "Import backup"), h("button", { onclick: loadSample }, "Load sample data"), h("button", { class: "danger", onclick: () => { if (confirm("Delete ALL workspace data in this browser?") && prompt('Type DELETE to confirm') === "DELETE") { S = DEFAULTS(); save(); applyTheme(); render(); } } }, "Erase everything"))));
+  secs.push(h("section", { class: "card" }, h("h3", {}, "About"), h("p", { class: "small" }, `Version ${APP_VERSION}, data schema ${SCHEMA_VERSION}.`), h("p", { class: "small muted" }, "Updates: replace index.html with the new build; your data stays in the browser and is migrated automatically. See docs/MAINTENANCE.md.")));
+  wrap.append(h("div", { class: "grid" }, secs)); return wrap;
+}
+const exportable = () => { const c = JSON.parse(JSON.stringify(S)); c.settings.apiKey = ""; return { app: "personal-workspace", version: APP_VERSION, exported: new Date().toISOString(), state: c }; };
+const b64 = (u8) => btoa(String.fromCharCode(...u8)), unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+async function deriveKey(pass, salt) { const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]); return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]); }
+async function encryptedExport() {
+  const pass = prompt("Passphrase for the encrypted backup (you cannot recover it if lost):"); if (!pass) return;
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), key = await deriveKey(pass, salt);
+  const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(exportable()))));
+  download(`workspace-backup-${today()}.enc.json`, JSON.stringify({ enc: 1, salt: b64(salt), iv: b64(iv), data: b64(data) }), "application/json"); S.settings.backedUp = true; save();
+}
+async function importBackup() {
+  const f = await pickFile(".json"); if (!f) return;
+  try {
+    let j = JSON.parse(await readText(f));
+    if (j.enc) { const pass = prompt("Passphrase:"); if (!pass) return; const key = await deriveKey(pass, unb64(j.salt)); j = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(j.iv) }, key, unb64(j.data)))); }
+    if (j.app !== "personal-workspace" || !j.state) throw new Error("Not a workspace backup");
+    if (!confirm("Replace current data with this backup? Your API key is kept.")) return;
+    const keep = S.settings.apiKey; S = migrate(j.state); S.settings.apiKey = keep; save(); render(); toast("Backup restored");
+  } catch (e) { toast("Import failed: " + (e.name === "OperationError" ? "wrong passphrase" : e.message)); }
+}
+function loadSample() {
+  if (S.projects.some((p) => p.sample)) return toast("Sample data already loaded");
+  const p = { id: uid(), name: "Sample: Donor report", goal: "Submit the Q4 narrative and financial report to the donor.", due: addDays(today(), 12), status: "active", sample: true }; S.projects.push(p);
+  [["Collect partner data", 2, 3, 4], ["Draft narrative section", 5, 3, 6], ["Finance check", 7, 2, 2], ["Submit report", 12, 3, 1], ["Overdue example: reply to reviewer", -2, 2, 1]].forEach(([title, d, pr, e]) => S.tasks.push(newTask({ title, due: addDays(today(), d), priority: pr, effort: e, projectId: p.id, sample: true })));
+  addDoc("Sample: meeting notes", "# Sample notes\n\nThis is a sample document. Edit it and save to create a version, then open History to compare.", ["sample"]); S.docs[0].sample = true;
+  save(); render(); toast("Sample data loaded. Remove it by deleting the project, tasks and document.");
+}
+function customAgentDialog(a) {
+  const isNew = !a; a = a || { id: "c-" + uid(), name: "", description: "", system: "" };
+  const f = { name: h("input", { value: a.name }), description: h("input", { value: a.description }), system: h("textarea", { value: a.system, style: "min-height:260px", placeholder: "# Role\n...\n# Rules\n...\n# Output structure\n..." }) };
+  dialog(isNew ? "New custom agent" : "Edit agent", h("div", {}, h("label", {}, "Name"), f.name, h("label", {}, "Description"), f.description, h("label", {}, "System prompt"), f.system, h("p", { class: "small muted" }, "Good prompts state role, inputs, rules, and an exact output structure. Add a fenced workspace-tasks block only for built-in agents.")), [
+    h("button", { class: "primary", onclick: () => { if (!f.name.value.trim() || !f.system.value.trim()) return toast("Name and system prompt are required"); Object.assign(a, { name: f.name.value.trim(), description: f.description.value.trim(), system: f.system.value.trim() }); if (isNew) S.customAgents.push(a); save(); el$("dlg").close(); render(); } }, "Save")]);
+}
+
+/* guide */
+function vGuide() {
+  const wrap = h("div", { class: "stack" }); wrap.append(pageHeader("Guide"));
+  const sec = (t, ...c) => h("section", { class: "card" }, h("h3", {}, t), ...c);
+  wrap.append(sec("Start here: a 10-minute tutorial", mdBox(`1. **Load sample data** (Settings > Data) to see a populated workspace, then delete it later.
+2. **Add a task** from the Dashboard quick-add. Give it a due date and an effort estimate; the workload widget needs both.
+3. **Check the Dashboard.** "Needs attention" lists overdue and 48-hour items. "Workload" compares hours due in 7 days with your capacity.
+4. **Open AI agents > Project Drafting.** Without an API key, press *Prompt Pack (copy)* and paste into Claude. With a key, press *Run agent*, then *Import tasks*.
+5. **Import your calendar** (Calendar > Import .ics). Deadline-like events become tasks.
+6. **Save and compare.** Save agent output to the Library, edit it, save again, then open History to compare versions.
+7. **Export a backup** (Settings > Data). Do this weekly.`, "")));
+  wrap.append(sec("How each part works", mdBox(`- **Dashboard:** widgets can be hidden and reordered in Settings.
+- **Reminders:** in-app and browser notifications fire only while this page is open. For alerts when it is closed, export deadlines to your calendar (.ics): the file includes 3-day and 1-day alarms.
+- **Writing agent:** give topic, audience, tone and facts you trust. It marks unsupported claims as \`[VERIFY]\`.
+- **Research agent:** it cannot browse. Paste sources; it grades evidence and lists gaps. Without sources it returns a research plan and unverified training knowledge, clearly labelled.
+- **Project drafting agent:** structured outline, work plan and tasks you can import with one click.
+- **Deadline agent:** proposes date and priority changes; nothing changes until you press *Apply*. The *local triage* button works offline.
+- **Insights:** rate every agent output (Yes/No). Recommendations improve with use.
+- **Custom agents:** Settings > Agents > Add custom agent. Copy a built-in prompt as a starting point.`, "")));
+  wrap.append(sec("Privacy and safety", mdBox(`- Data stays in this browser (IndexedDB). Nothing is sent anywhere except to Anthropic when you press *Run agent*, and that request contains only the form fields (and the snapshot if ticked).
+- The API key is stored locally and excluded from backups.
+- Agents can be wrong. Verify facts, figures and citations before use.
+- Encrypted backups use AES-GCM with a passphrase; lose the passphrase and the backup is unrecoverable.`, "")));
+  wrap.append(sec("Full documentation", h("p", {}, "docs/USER_GUIDE.md, docs/AGENTS.md (prompt design and tuning), docs/ARCHITECTURE.md (design, scaling and integrations), docs/MAINTENANCE.md (updates, support and roadmap).")));
+  return wrap;
+}
+
+/* ---------- boot ---------- */
+async function boot() {
+  await DB.open();
+  const saved = await DB.get("state"); if (saved) S = migrate(saved);
+  addEventListener("hashchange", render);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => S.settings.theme === "auto" && applyTheme());
+  if (S.tasks.length === 0 && !saved) S.settings.onboardingDismissed = false;
+  render(); checkReminders(); setInterval(checkReminders, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { checkReminders(); renderNav(); } });
+}
+boot();
+</script>
+</body>
+</html>

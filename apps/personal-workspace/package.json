@@ -1,0 +1,11 @@
+{
+  "name": "personal-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first personal workspace with prompt-defined AI agents. No runtime dependencies.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "smoke": "node tests/smoke.cjs"
+  }
+}
