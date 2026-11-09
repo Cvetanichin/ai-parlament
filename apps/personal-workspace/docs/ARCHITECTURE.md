@@ -10,8 +10,9 @@
 
 | Decision | Choice | Rationale | Trade-off |
 |---|---|---|---|
-| Delivery | Single static HTML file | Zero hosting, zero accounts, instant use | No background jobs, no multi-device sync |
-| Storage | IndexedDB (localStorage fallback) | Private, offline, large quota | Per-browser; user must back up |
+| Delivery | Single static HTML file | Zero hosting, zero accounts, instant use | No background jobs |
+| Storage | IndexedDB (localStorage fallback) | Private, offline, large quota | Per-browser unless sync is on; user must back up |
+| Sync (optional) | Supabase Auth and PostgREST over `fetch`; one row per record; last-write-wins; RLS per user | Cross-device without a server of our own; no library; stays local-first | Records stored unencrypted in the project; later edit wins as a whole record; needs a Supabase project. See `SYNC.md` |
 | Agents | Prompt files + registry, compiled in | Prompts are the product; editable, diffable, reviewable | Rebuild needed to change built-ins (custom agents need no rebuild) |
 | AI access | Direct browser call to Anthropic with user key | No server to secure or pay for | Key sits in the browser; single-user only |
 | Output handling | Fenced JSON contracts, validated, applied on click | Agents act without being trusted | Models can omit or malform blocks; the app then just shows text |
@@ -40,6 +41,8 @@
 ```
 
 ## 4. Data model (schema version 1)
+
+The sync state (`sync`: URL, publishable key, session, per-record bookkeeping, cursor) is additive and defaults on load, so it needs no schema bump. The cloud table `workspace_items` and its protocol are described in `SYNC.md`.
 
 | Entity | Key fields |
 |---|---|
@@ -70,6 +73,8 @@ Migrations: `MIGRATIONS[n]` upgrades n-1 to n; unknown settings keys are default
 | Agent output | Prompt injection via pasted sources | Agents cannot act; imports and updates are validated and need a click; review panel shows proposed changes |
 | Backup files | Disclosure | Encrypted option (PBKDF2-SHA256 250k iterations, AES-GCM) |
 
+With sync on, the same applies to the sign-in tokens, and the cloud copy of your records is plain text readable by project admins (`SYNC.md`, section 4).
+
 Residual risk: anyone who can run script in this origin can read the key. Do not host the page alongside other apps on the same origin.
 
 ## 7. Scaling path
@@ -79,7 +84,7 @@ Build in this order; stop when the need is met.
 | Stage | Trigger | Change |
 |---|---|---|
 | 0 (now) | One person, one browser | As built |
-| 1 | Want a second device | Add backup sync: export to a synced folder (Drive, Dropbox) weekly, or File System Access API autosave |
+| 1 | Want a second device | **Built as optional sync (`SYNC.md`).** Without it: export to a synced folder weekly, or File System Access API autosave |
 | 2 | Want live calendar and email | Add automation (Make or Zapier): calendar event with a label creates a task via a webhook-to-JSON inbox; page polls an inbox file or small endpoint |
 | 3 | Want the key off the device, or a team | Thin proxy (edge function) holding the key; auth; shared store (Supabase or Airtable). Keep the agent registry and contracts unchanged |
 | 4 | Want agents with tools | Server-side agent loop with web search and document tools; keep human-approval contracts |

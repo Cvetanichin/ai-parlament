@@ -1,6 +1,6 @@
 # Personal Workspace
 
-A local-first workspace for managing personal and professional tasks, projects and deadlines, with four prompt-defined AI agents. One HTML file, no backend, no runtime dependencies. Data stays in your browser.
+A local-first workspace for managing personal and professional tasks, projects and deadlines, with four prompt-defined AI agents. One HTML file, no runtime dependencies, no backend required. Data stays in your browser unless you turn on optional sync to your own Supabase project.
 
 ## Quick start
 
@@ -18,7 +18,7 @@ A local-first workspace for managing personal and professional tasks, projects a
 | 4 | Project drafting agent | AI agents | Built. Imports tasks in one click |
 | 5 | Deadline tracking agent | AI agents, Dashboard | Built. Local triage works offline; AI proposals need your approval |
 | 6 | Calendar integration | Calendar | Partial: `.ics` import and export. Live two-way sync is not possible in a static app (see ARCHITECTURE) |
-| 7 | Storage, search, version control | Library | Built for text and Markdown. Binary files are not stored |
+| 7 | Storage, search, version control | Library, Settings > Sync | Built for text and Markdown (binary files are not stored). Optional account and cross-device sync via Supabase: see `docs/SYNC.md` |
 | 8 | Progress updates and metrics | Insights, Dashboard | Built. Weekly review document, agent effectiveness table |
 | 9 | Interface and customisation | Settings | Built: themes, density, accent, widget order and visibility, agent toggles, custom agents |
 | 10 | Support and maintenance | `docs/MAINTENANCE.md` | Process defined; versioned schema with migrations |
@@ -33,6 +33,7 @@ apps/personal-workspace/
   agents/*.md           System prompts (edit these)
   scripts/build.mjs     Compiles agents + version into index.html
   tests/smoke.cjs       Headless-browser smoke test (needs Playwright)
+  tests/sync.cjs        Sync test: three browsers against a fake Supabase
   docs/                 USER_GUIDE, AGENTS, ARCHITECTURE, MAINTENANCE
 ```
 
@@ -41,10 +42,11 @@ apps/personal-workspace/
 ```bash
 node scripts/build.mjs                      # rebuild index.html after editing src/ or agents/
 NODE_PATH=$(npm root -g) node tests/smoke.cjs   # smoke test
+NODE_PATH=$(npm root -g) node tests/sync.cjs    # sync test
 ```
 
 ## Limits to know before relying on it
 
-- Data lives in one browser profile. Clearing site data deletes it. Export backups weekly.
+- Without sync, data lives in one browser profile; clearing site data deletes it. Export backups weekly. With sync on, records are also stored, unencrypted, in your Supabase project (`docs/SYNC.md`).
 - The API key is stored unencrypted in that browser profile and the request goes straight from the browser to Anthropic. Fine for a personal machine with a spend-limited key; not suitable for shared computers or teams.
 - Agent output can be wrong. The prompts forbid invented facts and citations, but you must still verify.
