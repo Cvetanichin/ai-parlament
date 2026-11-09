@@ -1,6 +1,6 @@
 // Inlines agents/registry.json + agents/*.md and the package version into src/template.html
 // and writes ./index.html (the single deployable file). No dependencies.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,4 +30,9 @@ for (const [token, value] of [['"__AGENTS__"', safe(agents)], ['"__VERSION__"', 
   html = html.replace(token, () => value);
 }
 writeFileSync(join(root, 'index.html'), html);
+// Static hosts (Vercel with Root Directory = apps/personal-workspace) run `npm run build` and then serve ./public.
+// Only the one file is published there: docs, prompts and tests are not served. ./public is generated and git-ignored;
+// the committed ./index.html stays the copy you can open straight from disk.
+mkdirSync(join(root, 'public'), { recursive: true });
+writeFileSync(join(root, 'public', 'index.html'), html);
 console.log(`Built index.html (${(html.length / 1024).toFixed(0)} KB, ${agents.length} agents, v${version})`);
