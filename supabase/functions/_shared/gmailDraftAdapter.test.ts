@@ -18,6 +18,7 @@ Deno.test("reject missing recipients",()=>{
 });
 Deno.test("saved draft calls only profile lookup and drafts.create", async()=>{
   const called:string[]=[];
+  // deno-lint-ignore require-await
   const mockFetch=async (url:RequestInfo|URL, options?:RequestInit):Promise<Response>=>{
     const u=String(url);called.push(u);
     if(u.endsWith("/profile")) return new Response(JSON.stringify({emailAddress:"workspace@example.org"}),{status:200});
@@ -35,6 +36,7 @@ Deno.test("saved draft calls only profile lookup and drafts.create", async()=>{
 });
 Deno.test("reject foreign mailbox before saving draft",async()=>{
   const called:string[]=[];
+  // deno-lint-ignore require-await
   const mockFetch=async(url:RequestInfo|URL):Promise<Response>=>{
     called.push(String(url));
     return new Response(JSON.stringify({emailAddress:"other@example.org"}),{status:200});
