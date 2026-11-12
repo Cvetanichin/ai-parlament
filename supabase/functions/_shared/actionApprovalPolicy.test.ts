@@ -23,8 +23,13 @@ Deno.test("sending email always requires an approval", () => {
   const outcome = assessAction(base, context, null);
   expect(!outcome.permitted && outcome.nextStatus === "awaiting_human", "send gate");
 });
-Deno.test("valid approval permits execution", () => {
-  expect(assessAction(base, context, approval).permitted, "approved send");
+Deno.test("even an approved email cannot be sent by this workspace", () => {
+  const outcome = assessAction(base, context, approval);
+  expect(!outcome.permitted && outcome.reason === "operation_disabled", "send forbidden");
+});
+Deno.test("validated Gmail draft can be saved with bounded standing authorisation", () => {
+  const draft: ActionRequest = {...base, kind: "gmail.draft", targetResource: "draft:recipient@example.org"};
+  expect(assessAction(draft, context, null).permitted, "draft permitted");
 });
 Deno.test("edited draft invalidates approval", () => {
   expect(!assessAction({...base, payloadDigest: "sha256:draft-v2"}, context, approval).permitted, "digest mismatch");
