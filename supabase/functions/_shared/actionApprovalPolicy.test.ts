@@ -19,9 +19,9 @@ const approval: ApprovalEvidence = {
 function expect(value: boolean, label: string): void {
   if (!value) throw new Error(label);
 }
-Deno.test("sending email always requires an approval", () => {
+Deno.test("sending email is disabled without approval", () => {
   const outcome = assessAction(base, context, null);
-  expect(!outcome.permitted && outcome.nextStatus === "awaiting_human", "send gate");
+  expect(!outcome.permitted && outcome.reason === "operation_disabled", "send forbidden");
 });
 Deno.test("even an approved email cannot be sent by this workspace", () => {
   const outcome = assessAction(base, context, approval);

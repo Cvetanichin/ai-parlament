@@ -86,3 +86,18 @@ Deno.test("review approval alone cannot submit a portal application", () => {
   expect(!maySubmitToPortal("ready_for_review", true, true), "draft not reviewed");
   expect(maySubmitToPortal("approved", true, true), "explicit approval");
 });
+
+Deno.test("discovery requires meaningful source identity and evidence", () => {
+  for (const patch of [{sourceId: " "}, {projectKey: " "}, {sourceRefs: ["ref", " "]}]) {
+    expect(proposeTasks([{...candidate, ...patch}], new Set()).length === 0, "invalid candidate");
+  }
+});
+
+Deno.test("Drive routing blocks root, malformed mappings and blank evidence", () => {
+  for (const folderId of ["root", " ", " folder "]) {
+    const mapping = [{...folders[0], folderId}];
+    expect(resolveDraftDestination(deliverable, mapping).status === "blocked", "invalid folder");
+  }
+  expect(resolveDraftDestination(deliverable, [...folders, {...folders[0], folderId: ""}]).status === "blocked", "ambiguous mapping");
+  expect(resolveDraftDestination({...deliverable, sourceRefs: [" "]}, folders).status === "blocked", "blank evidence");
+});

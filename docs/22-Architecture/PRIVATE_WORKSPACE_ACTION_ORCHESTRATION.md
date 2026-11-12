@@ -108,9 +108,6 @@ Review card must show the exact operation, recipient(s), destination, source ver
 7. Add browser/portal adapter only where supported, with mandatory exact-submission approval.
 8. Run redacted integration tests: cross-project access, payload edit after approval, duplicate provider request, failed/uncertain write, unvalidated specialist, sheet row corruption, conflict between synced and manual edits.
 
-## Current status
-This branch contains a pure action policy and Deno unit tests. It does **not** yet have connector executor, OAuth configuration, migration, frontend approval screen, deployed Edge Functions or live tests. No emails, calendar invites, portal applications or other external actions were sent.
-
 ## Principal knowledge-work workflows (priority order)
 These are the primary workspace outcomes. Connector actions serve them, not the other way around.
 
@@ -173,5 +170,15 @@ Use independent document research and data analysis workers only when the delive
 
 No production deployment is authorised by these decisions alone. Sending emails remains disabled. Portal submission requires a separate specific human approval even after a document has been reviewed.
 
-## Current verification boundary
-Read: live Google Sheet metadata and sample rows, GitHub prompt orchestration entrypoint, workflow engine and auth implementation, source design document. Verified: feature branch source commits can be fetched. Not tested: Deno runtime tests, Supabase migration, provider-side OAuth, Gmail draft creation, database transactions and end-to-end UI. Treat this as implementation code pending tests, not a functioning production backend.
+## Implementation checkpoint, 12 November 2026
+
+Read-only staging inspection confirmed that the Gmail queue and event ledger exist with RLS enabled. The queue contained zero actions. The deployed workspace-gmail-draft function was active at version 2 with JWT verification enabled. Its save path records provider evidence and sets ready_for_review. These observations establish deployment state only.
+
+Branch policy now rejects blank discovery identities or source evidence and rejects root, blank, padded or ambiguous Drive folder mappings. All 28 focused Deno tests passed locally, including Gmail mock calls. No staging write or provider call was needed.
+
+Next steps in order:
+
+1. Test staging ownership and project isolation with synthetic identities. Check workflow-instance project binding and mailbox ownership before any Gmail pilot.
+2. Verify proposal/execute digest stability across a JSONB round trip, atomic audit writes, and uncertain-result reconciliation using synthetic records and a mock provider.
+3. Connect bounded discovery to the proposal queue. Implement Drive metadata verification for mapped folder IDs (existing folder, expected project destination, accessible and not trashed) before activating writes.
+4. Implement human review tied to the saved artifact version, including invalidation on substantive edits. Work Control write-back and production deployment remain pending.
