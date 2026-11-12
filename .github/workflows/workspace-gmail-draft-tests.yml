@@ -1,0 +1,39 @@
+name: Private workspace draft-only policy tests
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/_shared/*WorkspacePolicy*.ts'
+      - 'supabase/functions/_shared/*ApprovalPolicy*.ts'
+      - 'supabase/functions/_shared/gmailDraftAdapter*.ts'
+      - 'supabase/functions/workspace-gmail-draft/**'
+      - '.github/workflows/workspace-gmail-draft-tests.yml'
+  push:
+    branches:
+      - feature/private-workspace-action-gates
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deno-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run pure policy and Gmail mock tests
+        run: |
+          deno test --no-check \
+            supabase/functions/_shared/actionApprovalPolicy.test.ts \
+            supabase/functions/_shared/privateWorkspacePolicy.test.ts \
+            supabase/functions/_shared/gmailDraftAdapter.test.ts
+      - name: Type-check pure modules and their tests
+        run: |
+          deno check \
+            supabase/functions/_shared/actionApprovalPolicy.test.ts \
+            supabase/functions/_shared/privateWorkspacePolicy.test.ts \
+            supabase/functions/_shared/gmailDraftAdapter.test.ts
