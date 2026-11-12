@@ -28,7 +28,7 @@ Start with one private user workspace. Use current Supabase user/project/organis
 | Connector | Candidate actions | Default rule |
 |---|---|---|
 | Google Drive | search, read, create, update, share | read allowed within scope; internal create/update only under bounded standing authorisation; share requires approval |
-| Gmail | search, read, draft, send | drafts are allowed with bounded authorisation; send requires explicit approval of exact recipients/subject/body/attachments |
+| Gmail | search, read, create/update drafts | **Draft-only workspace: sending is disabled, even with human approval.** Save addressed drafts with subject, body, attachments and source evidence where authorised |
 | Google Calendar | read, create, update, delete | invite-creating or changing events requires approval; read may be automated |
 | GitHub | read, branch, commit, merge, release | branch/commit within authorised repo/branch allowed with bounded authorisation; merge/release require approval |
 | External portal | prepare, submit | prepare evidence/draft; submit always needs approval and submission receipt |
@@ -103,10 +103,43 @@ Review card must show the exact operation, recipient(s), destination, source ver
 2. Implement queue and approvals migration + restrictive RLS.
 3. Add read-only connectors and action proposals; run permission/ownership tests.
 4. Add exact-payload human approval UI and audited action execution.
-5. Add Google Drive create/update and Gmail draft, then approved Gmail send.
+5. Add Google Drive create/update and Gmail draft creation/update. Do **not** implement Gmail send.
 6. Add Calendar mutation and GitHub branch/commit, then gated merge/release.
 7. Add browser/portal adapter only where supported, with mandatory exact-submission approval.
 8. Run redacted integration tests: cross-project access, payload edit after approval, duplicate provider request, failed/uncertain write, unvalidated specialist, sheet row corruption, conflict between synced and manual edits.
 
 ## Current status
 This branch contains a pure action policy and Deno unit tests. It does **not** yet have connector executor, OAuth configuration, migration, frontend approval screen, deployed Edge Functions or live tests. No emails, calendar invites, portal applications or other external actions were sent.
+
+## Principal knowledge-work workflows (priority order)
+These are the primary workspace outcomes. Connector actions serve them, not the other way around.
+
+| Workflow | Specialist responsibility | Input sources | Primary output | Quality gates | Destination |
+|---|---|---|---|---|---|
+| EMAIL_DRAFT | Research relevant thread, extract decisions, compose reply or new email **without sending** | Scoped Gmail thread, task, approved references | Gmail Draft with addressees, subject, reply-thread reference, attachments if applicable | Factual accuracy, correct recipients/thread, tone, confidentiality, no fabricated commitments | Gmail Drafts; Work Control task gets draft link |
+| PROJECT_PROPOSAL_DRAFT | Review call eligibility, donor guidelines, approved concept and previous drafts; produce proposal sections | Call documents, donor templates, project evidence | Versioned application/concept note and logframe/budget handoff | Eligibility, results chain, evidence, donor compliance, cross-document consistency; missing data visibly flagged | Google Drive; linked Work Control task |
+| RESEARCH_BRIEF | Develop research question, retrieve primary sources, evaluate quality and synthesise evidence | Scope, timeframe, documents, verifiable web sources | Source register, findings and decision-ready brief | Source freshness, citation fidelity, uncertainty, counterevidence | Google Docs/Drive |
+| DATA_ANALYSIS | Validate source data and grain; analyse trends and drivers; generate reproducible calculations and visuals | CSV/XLSX/Sheets, definitions, KPI specifications | Analysis report, tables, charts, limitations and code/query provenance | Schema, missingness, duplicates, arithmetic and method checks | Google Sheets/Drive |
+| DONOR_REPORT | Compare achievements against approved indicators, budgets and source evidence | Logframe, activity records, financials, reports | Narrative/results report with annexes and evidence matrix | No invented achievements, indicator consistency, variance explanations, donor template compliance | Google Docs/Drive |
+
+Every workflow receives: task ID, objective, one owner, authoritative source manifest, constraints, acceptance criteria, sensitivity, deliverable location and validator. The formatter cannot silently change validated substance. For drafts, technical completion does not mean content approval, and no email is sent.
+
+Default pipeline: `Work Control -> Prime Minister -> source/context loader -> specialist(s) -> Opposition & Compliance validator -> formatter -> Draft/Drive output -> provenance log -> Work Control update`.
+Use independent document research and data analysis workers only when the deliverable requires them. Proposal and reporting workflows must be blocked on conflicting authoritative source versions, not guessed around.
+
+### Gmail draft action contract
+- `gmail.draft` only: method `create` or `update`; destination mailbox and intended thread explicitly specified.
+- The executor must not include Gmail `messages.send`, `drafts.send` or any equivalent send endpoint in its capability allowlist.
+- On draft save, record provider draft ID, thread ID, last modified time and source task ID.
+- Update an existing draft only when its current message/thread identity is verified, otherwise create a separate draft and flag conflict.
+- Respect user exclusions when searching email. Confirm attachments and recipient addresses against sources; do not invent addresses.
+- Manual user sending from Gmail itself remains outside the automation.
+
+### Minimum acceptance tests
+1. A scoped email task results in a Gmail Drafts item, with no sent message.
+2. `gmail.send` action is denied despite a valid approval record.
+3. A proposal is drafted into the correct Drive destination without portal submission.
+4. Research claims can be traced to a source register and dates.
+5. Analysis identifies missing data and does not manufacture a baseline.
+6. A donor report is marked `needs_review` when outputs and logframe indicators conflict.
+7. A successful draft returns provider evidence and a Work Control Task ID update, preserving existing statuses and user-maintained dates.
