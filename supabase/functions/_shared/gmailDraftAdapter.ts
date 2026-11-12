@@ -16,7 +16,7 @@ export interface SavedGmailDraft {
 }
 const addressPattern = /^[A-Z0-9.!#$%&'*+/=?^`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+$/i;
 function assertHeader(value: string, field: string): void {
-  if (!value || /[\r\n\u0000-\u001f\u007f]/.test(value)) throw new Error(`invalid ${field}`);
+  if (!value || [...value].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) throw new Error(`invalid ${field}`);
 }
 export function validateDraft(input: GmailDraftInput): void {
   if (!Array.isArray(input.to) || input.to.length < 1 || input.to.length > 20) throw new Error("recipient required");
