@@ -1,4 +1,4 @@
-import {draftRaw,saveGmailDraft,validateDraft} from "./gmailDraftAdapter.ts";
+import {draftQueueDigest,isPrivateMailboxOwner,draftRaw,saveGmailDraft,validateDraft} from "./gmailDraftAdapter.ts";
 function check(ok:boolean,msg:string) { if(!ok) throw new Error(msg); }
 const valid={to:["partner@example.org"],subject:"Project meeting",body:"Proposed agenda and next steps."};
 Deno.test("draft has MIME envelope and recipient",()=>{
@@ -42,4 +42,21 @@ Deno.test("reject foreign mailbox before saving draft",async()=>{
   let rejected=false;
   try{await saveGmailDraft(valid,"test-token","workspace@example.org",mockFetch as typeof fetch);}catch{rejected=true;}
   check(rejected && called.length===1,"reject mailbox mismatch");
+});
+
+Deno.test("queue digest survives staging jsonb ordering and detects edits", async () => {
+  const submitted = {subject:"Project meeting", body:"Synthetic fixture", to:["a@example.org"]};
+  const stored = {to:["a@example.org"], body:"Synthetic fixture", subject:"Project meeting"};
+  const digest = await draftQueueDigest({draft:submitted, sourceRefs:["a","b"]});
+  check(digest === await draftQueueDigest({sourceRefs:["a","b"], draft:stored}), "jsonb order");
+  check(digest !== await draftQueueDigest({draft:stored, sourceRefs:["b","a"]}), "array order");
+  check(digest !== await draftQueueDigest({draft:{...stored,body:"Edited"}, sourceRefs:["a","b"]}), "edited body");
+  check(await draftQueueDigest(submitted,true) !== await draftQueueDigest(stored,true), "legacy order sensitivity");
+});
+
+Deno.test("private mailbox requires its configured application user", () => {
+  check(isPrivateMailboxOwner("owner", "owner"), "owner");
+  check(!isPrivateMailboxOwner("colleague", "owner"), "other member");
+  check(!isPrivateMailboxOwner("owner", undefined), "unconfigured mailbox");
+  check(!isPrivateMailboxOwner("system", "system"), "system identity");
 });

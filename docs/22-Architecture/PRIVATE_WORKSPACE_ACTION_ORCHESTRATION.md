@@ -182,3 +182,11 @@ Next steps in order:
 2. Verify proposal/execute digest stability across a JSONB round trip, atomic audit writes, and uncertain-result reconciliation using synthetic records and a mock provider.
 3. Connect bounded discovery to the proposal queue. Implement Drive metadata verification for mapped folder IDs (existing folder, expected project destination, accessible and not trashed) before activating writes.
 4. Implement human review tied to the saved artifact version, including invalidation on substantive edits. Work Control write-back and production deployment remain pending.
+
+### Mailbox ownership and queue integrity checkpoint
+
+The feature-branch Gmail handler now requires GMAIL_OWNER_USER_ID to match the authenticated application user for both proposal and execution. Before deploying, resolve the mailbox owner's staging Auth UUID and configure that value alongside the existing Gmail settings. Dashboard membership alone does not establish application mailbox ownership.
+
+A read-only staging query returned zero queued actions and confirmed that jsonb reordered keys in a synthetic draft. New queue digests preserve array order and sort object keys before hashing. Existing unversioned records retain their original verification path and fail closed on a mismatch.
+
+Local verification: 30 focused policy and mock-adapter tests passed. The complete Gmail Edge Function passed Deno type checking. These changes are branch-only. Remaining pilot gates include project-specific workflow binding, authenticated staging isolation tests, transactional audit events and uncertain-outcome reconciliation.
