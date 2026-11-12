@@ -84,7 +84,7 @@ export interface GateDecision {
   reason:
     | "ready" | "approval_required" | "approval_invalid"
     | "unauthorised" | "invalid_action" | "validation_required"
-    | "already_executing_or_finished" | "not_ready";
+    | "already_executing_or_finished" | "not_ready" | "operation_disabled";
 }
 
 export function assessAction(
@@ -95,6 +95,9 @@ export function assessAction(
   const deny = (reason: GateDecision["reason"], nextStatus: ActionStatus = "blocked"): GateDecision =>
     ({ permitted: false, requiresHuman: HUMAN_GATE_REQUIRED.has(action.kind), nextStatus, reason });
 
+  // Workspace contract: Gmail is draft-only. Sending is disabled even with approval.
+  // Submission through portals remains possible only after a separate human gate.
+  if (action.kind === "gmail.send") return deny("operation_disabled");
   if (!context.ownsWorkspace || !context.operationAllowed ||
       action.workspaceId !== context.workspaceId ||
       action.initiatorUserId !== context.authenticatedUserId) return deny("unauthorised");
