@@ -50,10 +50,8 @@ export function draftRaw(input: GmailDraftInput): string {
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: base64',
     '',
-    btoa(String.fromCharCode(...new TextEncoder().encode(input.body))),
+    encodeBase64(input.body),
   ];
-  // Large UTF-8 bodies may overflow a function call spread, use chunked base64 below.
-  lines[lines.length-1] = encodeBase64(input.body);
   return b64url(lines.join("\r\n"));
 }
 function encodeBase64(text: string): string {
