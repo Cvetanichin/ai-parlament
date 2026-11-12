@@ -143,3 +143,35 @@ Use independent document research and data analysis workers only when the delive
 5. Analysis identifies missing data and does not manufacture a baseline.
 6. A donor report is marked `needs_review` when outputs and logframe indicators conflict.
 7. A successful draft returns provider evidence and a Work Control Task ID update, preserving existing statuses and user-maintained dates.
+
+
+## Final owner decisions: 12 November 2026 (binding v1 scope)
+1. **Proactive initiation**: Discover candidate work from scoped Work Control tasks, Gmail, Calendar, Drive and GitHub. Proposals are deduplicated by provider source ID plus project identity, not by subject alone. They must not silently trigger an external operation.
+2. **Review all outputs**: Every generated email draft, proposal, research output, data analysis or report remains `ready_for_review` until the human executive explicitly reviews the saved artifact. Quality validation and human review are separate. Substantive edits invalidate the prior review.
+3. **Existing destinations**: Save document drafts to the existing authorised client/project Drive folder. No fallback to My Drive root and no new central workspace folder. An unknown or ambiguous folder results in a blocked deliverable requiring destination resolution.
+
+## Added pure-code modules in this branch
+- `supabase/functions/_shared/privateWorkspacePolicy.ts`: frozen private preferences; safe task candidate proposal/deduplication; reviewed-draft destination rules; separate explicit submission approval.
+- `supabase/functions/_shared/privateWorkspacePolicy.test.ts`: Deno tests for exclusions, candidate limits, duplicate proposals, approved folder mapping and review gates.
+- `supabase/functions/_shared/actionApprovalPolicy.ts`: Gmail send is forbidden, including with an approval token; allowlisted Gmail draft creation is separate. No connector calls are made by this module.
+- `supabase/functions/_shared/actionApprovalPolicy.test.ts`: email draft/send and action gate cases.
+
+## Implementation backlog: sequential, acceptance-tested
+| Order | Work item | Change boundary | Acceptance |
+|---|---|---|---|
+| 1 | Review branch and execute policy unit tests | Test only | No Gmail send path; unknown folders blocked; unvalidated work excluded |
+| 2 | Inspect live Supabase schemas and current workflow routes | Read-only | DB column/enums/RLS mapped, no competing orchestration engine |
+| 3 | Create additive action queue and review ledger migration | Feature branch, migration only | Owner-scoped RLS, append-only events, idempotent action status transitions |
+| 4 | Work Control ingestion adapter | Read-only first | Preserve Task IDs and A:V mapped fields; detect malformed B7 header; never modify W:Y calculations |
+| 5 | Proactive discovery | Candidate-only | Bounded Gmail/Calendar/Drive/GitHub context, user exclusions respected, duplicate suppression, no email sends |
+| 6 | Gmail Drafts adapter | Bounded write | Save and verify draft ID/thread, never call send endpoint |
+| 7 | Document workflows and Drive adapter | Bounded write | Proposal/research/analysis/report drafts saved to authorised existing folders and linked to task |
+| 8 | Validators for all activated workflows | Prompt-and-test | Every artifact gets explicit source provenance, independent validation and post-format check |
+| 9 | Review interface | App implementation | Every draft surfaced for human review; approvals tied to exact artifact version |
+| 10 | Work Control write-back and reconciliation | Controlled write | Stable Task ID, evidence link, preserve user-managed status, no duplicate hourly sync |
+| 11 | Pilot and release checks | Test only before deploy | No external communications, no unreviewed document labelled final, failure/retry audit complete |
+
+No production deployment is authorised by these decisions alone. Sending emails remains disabled. Portal submission requires a separate specific human approval even after a document has been reviewed.
+
+## Current verification boundary
+Read: live Google Sheet metadata and sample rows, GitHub prompt orchestration entrypoint, workflow engine and auth implementation, source design document. Verified: feature branch source commits can be fetched. Not tested: Deno runtime tests, Supabase migration, provider-side OAuth, Gmail draft creation, database transactions and end-to-end UI. Treat this as implementation code pending tests, not a functioning production backend.
