@@ -71,6 +71,7 @@ export function proposeTasks(
   if (!Number.isInteger(maxResults) || maxResults < 0 || maxResults > 100) {
     throw new Error("invalid task proposal limit");
   }
+  if (maxResults === 0) return [];
   const seen = new Set<string>(existingCandidateKeys);
   const permitted = candidates.filter(c =>
     !c.explicitExclusion &&
