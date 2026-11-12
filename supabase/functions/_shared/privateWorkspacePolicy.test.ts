@@ -25,7 +25,7 @@ Deno.test("fixed private preferences match the owner's decisions", () => {
   expect(PRIVATE_WORKSPACE.taskInitiation === "proactive", "proactive");
   expect(PRIVATE_WORKSPACE.reviewPolicy === "all", "review all");
   expect(PRIVATE_WORKSPACE.documentDestinations === "existing", "existing folders");
-  expect(!("send" in PRIVATE_WORKSPACE.allowedEmailOperations), "no Gmail send");
+  expect(!PRIVATE_WORKSPACE.allowedEmailOperations.some(operation => operation === "send"), "no Gmail send");
 });
 
 Deno.test("proactive discovery proposes without executing", () => {
