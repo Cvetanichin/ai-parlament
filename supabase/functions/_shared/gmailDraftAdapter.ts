@@ -108,3 +108,18 @@ export async function saveGmailDraft(
     threadId:result.message.threadId ? String(result.message.threadId) : null,
   };
 }
+
+/** Hash JSON objects in a stable order across PostgreSQL jsonb round trips. */
+export async function draftQueueDigest(payload: object, legacy = false): Promise<string> {
+  const json = JSON.stringify(payload, legacy ? undefined : (_key, value) => {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]));
+  });
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json));
+  const hash = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+  return (legacy ? "sha256:" : "v2:sha256:") + hash;
+}
+
+export function isPrivateMailboxOwner(callerId: string, configuredOwner: string | undefined): boolean {
+  return !!configuredOwner && callerId !== "system" && callerId === configuredOwner;
+}

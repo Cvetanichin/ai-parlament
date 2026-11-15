@@ -5,7 +5,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { resolveCaller } from "../_shared/auth.ts";
 import { withCors } from "../_shared/cors.ts";
-import { draftRaw, gmailAccessToken, saveGmailDraft, validateDraft,
+import { draftQueueDigest, isPrivateMailboxOwner, draftRaw, gmailAccessToken, saveGmailDraft, validateDraft,
   type GmailDraftInput } from "../_shared/gmailDraftAdapter.ts";
 
 interface ProposeBody {
@@ -27,10 +27,6 @@ function bad(message:string,status=400):Response { return json({error:{code:mess
 function validUuid(value:string):boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
-function hex(bytes:Uint8Array):string { return Array.from(bytes).map(b=>b.toString(16).padStart(2,"0")).join(""); }
-async function digest(payload:object):Promise<string> {
-  return "sha256:"+hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(payload)))));
-}
 Deno.serve(withCors(async (req:Request) => {
   if(req.method!=="POST") return bad("method_not_allowed",405);
   try {
@@ -39,6 +35,8 @@ Deno.serve(withCors(async (req:Request) => {
     const admin=supabaseAdmin();
     const caller=await resolveCaller(req,admin,body.projectId);
     if (caller.userId==="system") return bad("human_user_session_required",403);
+
+    if (!isPrivateMailboxOwner(caller.userId, Deno.env.get("GMAIL_OWNER_USER_ID"))) return bad("mailbox_owner_required",403);
 
     if(body.operation==="propose") {
       const { draft, sourceRefs, idempotencyKey, workflowInstanceId, workControlTaskId }=body;
@@ -55,7 +53,8 @@ Deno.serve(withCors(async (req:Request) => {
         if(!workflow) return bad("workflow_not_found",404);
       }
       // Only validated structure, not semantic accuracy. Every final draft still needs human review.
-      const fingerprint=await digest({draft,sourceRefs,projectId:body.projectId,workflowInstanceId:workflowInstanceId??null});
+      const payload={draft,sourceRefs,projectId:body.projectId,workflowInstanceId:workflowInstanceId??null};
+      const fingerprint=await draftQueueDigest(payload);
       const record={
         owner_user_id:caller.userId,organisation_id:caller.organisationId,
         project_id:body.projectId,workflow_instance_id:workflowInstanceId??null,
@@ -69,7 +68,8 @@ Deno.serve(withCors(async (req:Request) => {
         .eq("idempotency_key",idempotencyKey).maybeSingle();
       if(existingErr) throw existingErr;
       if(existing) {
-        if(existing.payload_digest!==fingerprint) return bad("idempotency_conflict",409);
+        const expected = existing.payload_digest.startsWith("sha256:") ? await draftQueueDigest(payload, true) : fingerprint;
+        if(existing.payload_digest!==expected) return bad("idempotency_conflict",409);
         return json({actionId:existing.id,status:existing.status,draftId:existing.provider_draft_id,reused:true});
       }
       const {data:created,error:createErr}=await admin.from("workspace_action_queue")
@@ -99,7 +99,7 @@ Deno.serve(withCors(async (req:Request) => {
       if(!Array.isArray(action.source_refs) || action.source_refs.length===0) return bad("source_manifest_missing",409);
       const draft=action.draft_payload as GmailDraftInput;
       try { draftRaw(draft); } catch { return bad("invalid_saved_draft",409); }
-      const fresh=await digest({draft,sourceRefs:action.source_refs,projectId:action.project_id,workflowInstanceId:action.workflow_instance_id??null});
+      const fresh=await draftQueueDigest({draft,sourceRefs:action.source_refs,projectId:action.project_id,workflowInstanceId:action.workflow_instance_id??null}, action.payload_digest.startsWith("sha256:"));
       if(fresh!==action.payload_digest) return bad("payload_changed",409);
       // Fail closed BEFORE claiming if server secrets are absent.
       const clientId=Deno.env.get("GMAIL_CLIENT_ID")??"";

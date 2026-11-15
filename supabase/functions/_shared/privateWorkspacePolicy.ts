@@ -53,6 +53,14 @@ export interface SuggestedTask {
   humanReviewed: false;
 }
 
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasSourceRefs(refs: unknown): boolean {
+  return Array.isArray(refs) && refs.length > 0 && refs.every(hasText);
+}
+
 export function candidateKey(c: WorkCandidate): string {
   // Never deduplicate merely by title: distinct projects often share titles.
   return [c.source, c.sourceId, c.projectKey].join(":");
@@ -74,11 +82,11 @@ export function proposeTasks(
   if (maxResults === 0) return [];
   const seen = new Set<string>(existingCandidateKeys);
   const permitted = candidates.filter(c =>
-    !c.explicitExclusion &&
-    c.authorisedScope &&
-    c.sourceId.length > 0 &&
-    c.projectKey.length > 0 &&
-    c.sourceRefs.length > 0 &&
+    c.explicitExclusion === false &&
+    c.authorisedScope === true &&
+    hasText(c.sourceId) &&
+    hasText(c.projectKey) &&
+    hasSourceRefs(c.sourceRefs) &&
     // Restricted material must first be handled through a separate
     // explicit data-handling decision, not automatic LLM processing.
     c.sensitivity !== "restricted"
@@ -136,19 +144,24 @@ export function resolveDraftDestination(
   deliverable: Deliverable,
   destinations: readonly DestinationMapEntry[],
 ): DeliveryDecision {
-  if (deliverable.validation !== "passed" || !deliverable.formatVerified) {
+  if (deliverable.validation !== "passed" || deliverable.formatVerified !== true) {
     return { status: "blocked", reason: "independent validation and formatting check required" };
   }
-  if (!deliverable.sourceRefs.length || !deliverable.sourceVersion || !deliverable.taskId) {
+  if (!hasSourceRefs(deliverable.sourceRefs) || !hasText(deliverable.sourceVersion) ||
+      !hasText(deliverable.taskId) || !hasText(deliverable.projectKey)) {
     return { status: "blocked", reason: "missing source manifest or task reference" };
   }
   const matches = destinations.filter(d =>
-    d.projectKey === deliverable.projectKey && d.authorised && !!d.folderId);
+    d.projectKey === deliverable.projectKey && d.authorised === true);
   if (matches.length !== 1) {
     return { status: "blocked", reason: "existing project destination is missing or ambiguous" };
   }
+  const folderId = matches[0].folderId;
+  if (!hasText(folderId) || folderId !== folderId.trim() || folderId === "root") {
+    return { status: "blocked", reason: "explicit project folder ID required" };
+  }
   // The result is always a draft for human review, never a final approval.
-  return { status: "ready_for_review", folderId: matches[0].folderId, review: "required" };
+  return { status: "ready_for_review", folderId, review: "required" };
 }
 
 /** External submission is not implied by review approval. */
