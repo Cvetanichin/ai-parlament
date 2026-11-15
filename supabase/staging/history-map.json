@@ -1,0 +1,748 @@
+{
+  "snapshotDate": "2026-11-15",
+  "projects": [
+    {
+      "ref": "dgwdtaoozlqfxgynrvkr",
+      "purpose": "Grant Studio staging",
+      "entries": [
+        {
+          "sourceVersion": "20261109042845",
+          "sourceName": "00000000000001_initial_schema",
+          "sourceStatementsMd5": "fff9b48cf06993ec36a80f1cc616d80b",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000001_initial_schema.sql",
+              "sha256": "113f7f1171d8bab5a7069e315317b2d14cd378c20432c75920c742b6dfb66ca6"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109042858",
+          "sourceName": "00000000000002_fix_rls_performance_and_indexes",
+          "sourceStatementsMd5": "e1eed18093dc7a55bf1c73d18b31e710",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000002_fix_rls_performance_and_indexes.sql",
+              "sha256": "3b4ed51abbdd75f3b20818b4c775c8282ab32bc692bf21c1325f0bc0c39cced6"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109042915",
+          "sourceName": "00000000000003_profiles",
+          "sourceStatementsMd5": "3e1dd24b232c8880f2e8971b3a245f20",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000003_profiles.sql",
+              "sha256": "4af88d38a63f044eedfa82fa8cffae8cc1b1f85b75381b22c9ab24728ba9f4d3"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109042923",
+          "sourceName": "00000000000004_harden_handle_new_user",
+          "sourceStatementsMd5": "f20446f6bc1d6671ae9919ab2b39526b",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000004_harden_handle_new_user.sql",
+              "sha256": "1ea960f94b07a90d70fca7e1363a8150050da718b548362e0c9188763e1f865a"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109042930",
+          "sourceName": "20260712183616_01_multi_tenancy",
+          "sourceStatementsMd5": "414c0ce721c3d7a9fa50308e96a51d16",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183616_01_multi_tenancy.sql",
+              "sha256": "a8c56339a8307e8068e7e9d48be34547151c8ad4e559aa9ae5a12376dd957537"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109042937",
+          "sourceName": "20260712183632_02_agent_runtime_workflow_engine",
+          "sourceStatementsMd5": "93677752cbc119f0c0aef620bbf1c8d6",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183632_02_agent_runtime_workflow_engine.sql",
+              "sha256": "dd0aa97860bc896fcdad44dbee49907dc5c4175c620a3d27cff1bfad1a8923fd"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109042947",
+          "sourceName": "20260712183647_03_regulatory_knowledge_layer",
+          "sourceStatementsMd5": "85482bc53c89b9df894824c90057bbf3",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183647_03_regulatory_knowledge_layer.sql",
+              "sha256": "c0920627b97376d6984063a414a87a0efb4f3b1f405b7ea67d7a3e4cf560978f"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109042953",
+          "sourceName": "20260712183714_04_grant_studio_domain",
+          "sourceStatementsMd5": "6c2034f70483208176cecdfd3f8840ef",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183714_04_grant_studio_domain.sql",
+              "sha256": "8044b623263b392f64b3f6b9726942c380556f6050a19647cc2446c77834aef0"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043004",
+          "sourceName": "20260712183731_05_knowledge_platform",
+          "sourceStatementsMd5": "38db453718833eb7de3fa2e70806d1e8",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183731_05_knowledge_platform.sql",
+              "sha256": "b7cddec5be894d6cfc0267d48a975bb22ba1a8e7eddfb4e0e197d2f12fcbe4b7"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043011",
+          "sourceName": "20260712183748_06_audit_log",
+          "sourceStatementsMd5": "8346c778e8a7b7972e46e9da32a707df",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183748_06_audit_log.sql",
+              "sha256": "0d068b83f81dce35837e58e3ec6a2dc6290f485d3d6378f611adae6fc410ecb1"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043017",
+          "sourceName": "20260712183805_07_platform_services",
+          "sourceStatementsMd5": "9d5f85603147a3f427824cee41d0a42d",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183805_07_platform_services.sql",
+              "sha256": "3684a2768cb3d5d7d5c96a23f557860477b313aab7eda0df287adc19c5a115cf"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043023",
+          "sourceName": "20260712183825_08_house_of_parliament_security_grant_studio_followons",
+          "sourceStatementsMd5": "a159b887ed9c8fcc7ae234e9a339e02c",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183825_08_house_of_parliament_security_grant_studio_followons.sql",
+              "sha256": "93e598171e60b238ad7a2e231addee40a783cecfe1cd559df2ffd3f5bb2a3c06"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043045",
+          "sourceName": "20260712183838_09_ai_governance_followons",
+          "sourceStatementsMd5": "05c73107da7dcb724e99f42a2766d9a5",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183838_09_ai_governance_followons.sql",
+              "sha256": "ea90d5c9fb68eb02a24f6f039344d4bb841772ab19712e4957c263fe4df375c1"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043052",
+          "sourceName": "20260712184239_10_performance_hardening",
+          "sourceStatementsMd5": "d2bf03d6b97c71e09207817844855f6a",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712184239_10_performance_hardening.sql",
+              "sha256": "bdc68fc970e3ee5b37503f7db2e44e8b9dc955165ee78e031d4e657a20ca96e4"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043059",
+          "sourceName": "20260713000001_11_phase1_seed",
+          "sourceStatementsMd5": "0c6484ae5dc3425ffc7ffddc1b25af4c",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260713000001_11_phase1_seed.sql",
+              "sha256": "84ad0a1112366da02bf722e0e29e51f068bb6eb89036c0867110794f9add27d3"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043119",
+          "sourceName": "20260715032317_12_regulatory_precedence_model",
+          "sourceStatementsMd5": "66fa9b8de85b18cf410a32c1597b3f83",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260715032317_12_regulatory_precedence_model.sql",
+              "sha256": "46609f4f84b210a247a029b86d3b07bc637f6eccd550a54bb6ad26e8212df580"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043123",
+          "sourceName": "20260715044454_12_embedding_provenance",
+          "sourceStatementsMd5": "afba059689ac162beb9b338c88db6127",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260715044454_12_embedding_provenance.sql",
+              "sha256": "4c23951958f3658e62d9d54ed09797ea94563249cb61e56706eed48ed669eee3"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043128",
+          "sourceName": "20260715045009_13_embedding_pipeline_support",
+          "sourceStatementsMd5": "d3b7964cdcdcdc8383d8c7ae3c1e2a69",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260715045009_13_embedding_pipeline_support.sql",
+              "sha256": "43a21822eb3559ed90ab8cd64d50f66e9cdd04b6f1ae4152de6741c7c571d6f7"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043137",
+          "sourceName": "20260718155415_14_apply_embedding_batch_search_path_fix",
+          "sourceStatementsMd5": "8eb43f568f617ec934644cecdeb07706",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260718155415_14_apply_embedding_batch_search_path_fix.sql",
+              "sha256": "ad6708fe6585253d64fd2c77dcfd24c7afb389c4f6770a75eb0a11366fb6af91"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043147",
+          "sourceName": "20260718170000_15_governance_mode_column",
+          "sourceStatementsMd5": "ce904b146e16e934cb347c70df4d8f46",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260718170000_15_governance_mode_column.sql",
+              "sha256": "4358a2eeff8c6718fa582a14ef8541290a9539973eca21268491a19345b0df01"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109043539",
+          "sourceName": "20260720064718_16_consolidate_rls_policies",
+          "sourceStatementsMd5": "6786c6fa6a169f73ca1117e37f3a6f64",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720064718_16_consolidate_rls_policies.sql",
+              "sha256": "0cd8af71a91c64c6f91b90b521d987174a337e2b2ddea9284aafae56172b4c1d"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109044814",
+          "sourceName": "create_notes_sample",
+          "sourceStatementsMd5": "d83001891f9e192f6a4f88b69f10b0a3",
+          "targets": [
+            {
+              "file": "supabase/migrations/20261109044814_create_notes_sample.sql",
+              "sha256": "c54ad49aac3b697f40110f1dafec938dc2f9a9827e7fdb61c0f44102aa93d5d4"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109044855",
+          "sourceName": "20260720073045_create_error_logs_table",
+          "sourceStatementsMd5": "02d843ed4ba4d7eb3cf92a25857b778d",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720073045_create_error_logs_table.sql",
+              "sha256": "475954dabd5d5870e499abe1adb48facf60ad77be8b86788004cd22438e5cc6c"
+            }
+          ],
+          "note": "Existing staging deliberately omitted demo public policies; final permissions migration enforces this stricter boundary on fresh stacks."
+        },
+        {
+          "sourceVersion": "20261109044902",
+          "sourceName": "20260720140000_17_prompt_orchestration_schema",
+          "sourceStatementsMd5": "9fff6b9ac6ff59b32ab81863f0541993",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720140000_17_prompt_orchestration_schema.sql",
+              "sha256": "44220e1f7e9791bf11d16ecbc55d4d7fa0afb6947add892ed6788bc5b9151740"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109044908",
+          "sourceName": "20260720141500_18_prompt_orchestration_seed",
+          "sourceStatementsMd5": "eec54ba487c1d11cc338db0b34dae777",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720141500_18_prompt_orchestration_seed.sql",
+              "sha256": "1ba1607dd83b0bda2f938cc09fe2be136d91d0e458669b0783d4ce8c99e67719"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109045013",
+          "sourceName": "20260725120000_19_indicators_insert_rls_fix",
+          "sourceStatementsMd5": "1ca5f064e555bdd059f1eb8df2316a8a",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260725120000_19_indicators_insert_rls_fix.sql",
+              "sha256": "8fa516ef8c79b37bd01494a6d89a8d6951ef967c0a1b9989638c18bb95183d8c"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109045019",
+          "sourceName": "20260726220000_20_self_serve_org_bootstrap",
+          "sourceStatementsMd5": "62969138d20066154981859c65d05362",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260726220000_20_self_serve_org_bootstrap.sql",
+              "sha256": "e8759a49790717f0398ab335b4ee29ecf8d8df85ba4692a404cd3439532a53a0"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109174921",
+          "sourceName": "grant_studio_setup_migrations_21_through_24",
+          "sourceStatementsMd5": "9f4edaa724e2537f009b134afb00075d",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260728120000_21_grant_table_privileges_for_local_dev.sql",
+              "sha256": "0f51c725c3e7fc376cf26a54354c61867e31ce76d9909f33c65cf298f8d1e9ff"
+            },
+            {
+              "file": "supabase/migrations/20260728130000_22_fix_org_members_insert_recursion.sql",
+              "sha256": "db3216f00661a59c609acdd057b91a15ad972c668eb7c23497fdeb55e2df0692"
+            },
+            {
+              "file": "supabase/migrations/20260729100000_23_atomic_organisation_bootstrap.sql",
+              "sha256": "39d6d9968bae506eb7a6fd3f0602dc97493629d229c248daf2b798ec8adfad64"
+            },
+            {
+              "file": "supabase/migrations/20260729120000_24_revoke_anon_function_execute.sql",
+              "sha256": "92a25dffec0298848078db332bae7e7c1fb9b8c298349243a0d8e9272679387d"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109175226",
+          "sourceName": "grant_studio_restore_internal_function_privileges",
+          "sourceStatementsMd5": "f5b5f18b801888dde799ed32498a9d6d",
+          "targets": [
+            {
+              "file": "supabase/migrations/20261109175226_grant_studio_restore_internal_function_privileges.sql",
+              "sha256": "f704f97159e088d1c171370fc7b51e970b4eb6db15d5c9152a36b3ca782cd9d0"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261112013046",
+          "sourceName": "workspace_gmail_draft_queue_v1",
+          "sourceStatementsMd5": "6309d0578568dc395e718536f9666566",
+          "targets": [
+            {
+              "file": "supabase/migrations/20261112013046_workspace_gmail_draft_queue_v1.sql",
+              "sha256": "94004dc403c9c9cb17adbbe233ced2529db566f94d4694bf4250b98d52e73102"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261115221941",
+          "sourceName": "25_prompt_orchestration_rpc_layer",
+          "sourceStatementsMd5": "c64c3a7fa999f1a59e3a99edc0f432d4",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260928200000_25_prompt_orchestration_rpc_layer.sql",
+              "sha256": "fa6f74a9bc2b0a08eb370d98fe3112a8984d6b34934dec7f3e70ecd871700fc7"
+            }
+          ],
+          "note": "Existing repository baseline applied during staging reconciliation; CLI/MCP recorded its application timestamp."
+        },
+        {
+          "sourceVersion": "20261115221942",
+          "sourceName": "26_personal_workspace_sync",
+          "sourceStatementsMd5": "c5bc38d319702c486a032ce7bdeed648",
+          "targets": [
+            {
+              "file": "supabase/migrations/20261109120000_26_personal_workspace_sync.sql",
+              "sha256": "adf9719003e0df8739788c6d5213d16d4193c7ff9cb5b8b4c6a8235fdab9ba3d"
+            }
+          ],
+          "note": "Existing repository baseline applied during staging reconciliation; CLI/MCP recorded its application timestamp."
+        },
+        {
+          "sourceVersion": "20261115221944",
+          "sourceName": "grant_studio_staging_permissions",
+          "sourceStatementsMd5": "cc58e5c11c97d40eb59fa87916265528",
+          "targets": [
+            {
+              "file": "supabase/migrations/20261115221354_grant_studio_staging_permissions.sql",
+              "sha256": "9d3b315832b28e8f46949ca3632bf13184c9efc9fa7d7facc3cd23f2edab32fe"
+            }
+          ],
+          "note": "Existing repository baseline applied during staging reconciliation; CLI/MCP recorded its application timestamp."
+        }
+      ]
+    },
+    {
+      "ref": "zfadrhpnhejzbpnfizxu",
+      "purpose": "Personal Workspace legacy integration",
+      "entries": [
+        {
+          "sourceVersion": "20260727013833",
+          "sourceName": "20260609000001_initial_schema",
+          "sourceStatementsMd5": "0b48ef3ddec329aa92cdf123f516c756",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000001_initial_schema.sql",
+              "sha256": "113f7f1171d8bab5a7069e315317b2d14cd378c20432c75920c742b6dfb66ca6"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727013907",
+          "sourceName": "20260609000002_fix_rls_performance_and_indexes",
+          "sourceStatementsMd5": "ef7616cf2abe0bbf3aa86387054f9d27",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000002_fix_rls_performance_and_indexes.sql",
+              "sha256": "3b4ed51abbdd75f3b20818b4c775c8282ab32bc692bf21c1325f0bc0c39cced6"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727013923",
+          "sourceName": "20260617000001_profiles",
+          "sourceStatementsMd5": "3e1dd24b232c8880f2e8971b3a245f20",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000003_profiles.sql",
+              "sha256": "4af88d38a63f044eedfa82fa8cffae8cc1b1f85b75381b22c9ab24728ba9f4d3"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727013937",
+          "sourceName": "20260624000001_harden_handle_new_user",
+          "sourceStatementsMd5": "f20446f6bc1d6671ae9919ab2b39526b",
+          "targets": [
+            {
+              "file": "supabase/migrations/00000000000004_harden_handle_new_user.sql",
+              "sha256": "1ea960f94b07a90d70fca7e1363a8150050da718b548362e0c9188763e1f865a"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014001",
+          "sourceName": "01_multi_tenancy",
+          "sourceStatementsMd5": "8bee21a8cb647e2343246e9c29f8d34d",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183616_01_multi_tenancy.sql",
+              "sha256": "a8c56339a8307e8068e7e9d48be34547151c8ad4e559aa9ae5a12376dd957537"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014024",
+          "sourceName": "02_agent_runtime_workflow_engine",
+          "sourceStatementsMd5": "bec4bc4319ff29313638357e33aa5547",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183632_02_agent_runtime_workflow_engine.sql",
+              "sha256": "dd0aa97860bc896fcdad44dbee49907dc5c4175c620a3d27cff1bfad1a8923fd"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014118",
+          "sourceName": "03_regulatory_knowledge_layer",
+          "sourceStatementsMd5": "85482bc53c89b9df894824c90057bbf3",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183647_03_regulatory_knowledge_layer.sql",
+              "sha256": "c0920627b97376d6984063a414a87a0efb4f3b1f405b7ea67d7a3e4cf560978f"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014147",
+          "sourceName": "04_grant_studio_domain",
+          "sourceStatementsMd5": "6c2034f70483208176cecdfd3f8840ef",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183714_04_grant_studio_domain.sql",
+              "sha256": "8044b623263b392f64b3f6b9726942c380556f6050a19647cc2446c77834aef0"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014204",
+          "sourceName": "05_knowledge_platform",
+          "sourceStatementsMd5": "38db453718833eb7de3fa2e70806d1e8",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183731_05_knowledge_platform.sql",
+              "sha256": "b7cddec5be894d6cfc0267d48a975bb22ba1a8e7eddfb4e0e197d2f12fcbe4b7"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014214",
+          "sourceName": "06_audit_log",
+          "sourceStatementsMd5": "8346c778e8a7b7972e46e9da32a707df",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183748_06_audit_log.sql",
+              "sha256": "0d068b83f81dce35837e58e3ec6a2dc6290f485d3d6378f611adae6fc410ecb1"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014234",
+          "sourceName": "07_platform_services",
+          "sourceStatementsMd5": "9d5f85603147a3f427824cee41d0a42d",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183805_07_platform_services.sql",
+              "sha256": "3684a2768cb3d5d7d5c96a23f557860477b313aab7eda0df287adc19c5a115cf"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014250",
+          "sourceName": "08_house_of_parliament_security_grant_studio_followons",
+          "sourceStatementsMd5": "a159b887ed9c8fcc7ae234e9a339e02c",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183825_08_house_of_parliament_security_grant_studio_followons.sql",
+              "sha256": "93e598171e60b238ad7a2e231addee40a783cecfe1cd559df2ffd3f5bb2a3c06"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014303",
+          "sourceName": "09_ai_governance_followons",
+          "sourceStatementsMd5": "05c73107da7dcb724e99f42a2766d9a5",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712183838_09_ai_governance_followons.sql",
+              "sha256": "ea90d5c9fb68eb02a24f6f039344d4bb841772ab19712e4957c263fe4df375c1"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014358",
+          "sourceName": "10_performance_hardening",
+          "sourceStatementsMd5": "d2bf03d6b97c71e09207817844855f6a",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260712184239_10_performance_hardening.sql",
+              "sha256": "bdc68fc970e3ee5b37503f7db2e44e8b9dc955165ee78e031d4e657a20ca96e4"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014417",
+          "sourceName": "11_phase1_seed",
+          "sourceStatementsMd5": "0c6484ae5dc3425ffc7ffddc1b25af4c",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260713000001_11_phase1_seed.sql",
+              "sha256": "84ad0a1112366da02bf722e0e29e51f068bb6eb89036c0867110794f9add27d3"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014430",
+          "sourceName": "12_regulatory_precedence_model",
+          "sourceStatementsMd5": "66fa9b8de85b18cf410a32c1597b3f83",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260715032317_12_regulatory_precedence_model.sql",
+              "sha256": "46609f4f84b210a247a029b86d3b07bc637f6eccd550a54bb6ad26e8212df580"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014440",
+          "sourceName": "12_embedding_provenance",
+          "sourceStatementsMd5": "afba059689ac162beb9b338c88db6127",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260715044454_12_embedding_provenance.sql",
+              "sha256": "4c23951958f3658e62d9d54ed09797ea94563249cb61e56706eed48ed669eee3"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014501",
+          "sourceName": "13_embedding_pipeline_support",
+          "sourceStatementsMd5": "d3b7964cdcdcdc8383d8c7ae3c1e2a69",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260715045009_13_embedding_pipeline_support.sql",
+              "sha256": "43a21822eb3559ed90ab8cd64d50f66e9cdd04b6f1ae4152de6741c7c571d6f7"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014516",
+          "sourceName": "14_apply_embedding_batch_search_path_fix",
+          "sourceStatementsMd5": "8eb43f568f617ec934644cecdeb07706",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260718155415_14_apply_embedding_batch_search_path_fix.sql",
+              "sha256": "ad6708fe6585253d64fd2c77dcfd24c7afb389c4f6770a75eb0a11366fb6af91"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014527",
+          "sourceName": "15_governance_mode_column",
+          "sourceStatementsMd5": "ce904b146e16e934cb347c70df4d8f46",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260718170000_15_governance_mode_column.sql",
+              "sha256": "4358a2eeff8c6718fa582a14ef8541290a9539973eca21268491a19345b0df01"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014656",
+          "sourceName": "16_consolidate_rls_policies",
+          "sourceStatementsMd5": "6786c6fa6a169f73ca1117e37f3a6f64",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720064718_16_consolidate_rls_policies.sql",
+              "sha256": "0cd8af71a91c64c6f91b90b521d987174a337e2b2ddea9284aafae56172b4c1d"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014714",
+          "sourceName": "create_error_logs_table",
+          "sourceStatementsMd5": "8f62b637f9e67cd7d36b4c4a24fcafe3",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720073045_create_error_logs_table.sql",
+              "sha256": "475954dabd5d5870e499abe1adb48facf60ad77be8b86788004cd22438e5cc6c"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014739",
+          "sourceName": "17_prompt_orchestration_schema",
+          "sourceStatementsMd5": "9fff6b9ac6ff59b32ab81863f0541993",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720140000_17_prompt_orchestration_schema.sql",
+              "sha256": "44220e1f7e9791bf11d16ecbc55d4d7fa0afb6947add892ed6788bc5b9151740"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014902",
+          "sourceName": "18_prompt_orchestration_seed",
+          "sourceStatementsMd5": "eec54ba487c1d11cc338db0b34dae777",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260720141500_18_prompt_orchestration_seed.sql",
+              "sha256": "1ba1607dd83b0bda2f938cc09fe2be136d91d0e458669b0783d4ce8c99e67719"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727014913",
+          "sourceName": "19_indicators_insert_rls_fix",
+          "sourceStatementsMd5": "1ca5f064e555bdd059f1eb8df2316a8a",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260725120000_19_indicators_insert_rls_fix.sql",
+              "sha256": "8fa516ef8c79b37bd01494a6d89a8d6951ef967c0a1b9989638c18bb95183d8c"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260727022122",
+          "sourceName": "20_self_serve_org_bootstrap",
+          "sourceStatementsMd5": "f94c845f0b9c6d58da01f9a72b53e937",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260726220000_20_self_serve_org_bootstrap.sql",
+              "sha256": "e8759a49790717f0398ab335b4ee29ecf8d8df85ba4692a404cd3439532a53a0"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260728162542",
+          "sourceName": "21_grant_table_privileges_for_local_dev",
+          "sourceStatementsMd5": "7232031042f8bb3182aedd5f612476ab",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260728120000_21_grant_table_privileges_for_local_dev.sql",
+              "sha256": "0f51c725c3e7fc376cf26a54354c61867e31ce76d9909f33c65cf298f8d1e9ff"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260728163307",
+          "sourceName": "22_fix_org_members_insert_recursion",
+          "sourceStatementsMd5": "5b5f6b6c3d91d1dd50f1c2ef93022973",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260728130000_22_fix_org_members_insert_recursion.sql",
+              "sha256": "db3216f00661a59c609acdd057b91a15ad972c668eb7c23497fdeb55e2df0692"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260728182510",
+          "sourceName": "23_atomic_organisation_bootstrap",
+          "sourceStatementsMd5": "8375ccb11c8b47ca135f4629a7d7a0ea",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260729100000_23_atomic_organisation_bootstrap.sql",
+              "sha256": "39d6d9968bae506eb7a6fd3f0602dc97493629d229c248daf2b798ec8adfad64"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20260730113136",
+          "sourceName": "24_revoke_anon_function_execute",
+          "sourceStatementsMd5": "dae18163ba57cfefab3de26d0f3b39c2",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260729120000_24_revoke_anon_function_execute.sql",
+              "sha256": "92a25dffec0298848078db332bae7e7c1fb9b8c298349243a0d8e9272679387d"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109075454",
+          "sourceName": "25_prompt_orchestration_rpc_layer",
+          "sourceStatementsMd5": "c64c3a7fa999f1a59e3a99edc0f432d4",
+          "targets": [
+            {
+              "file": "supabase/migrations/20260928200000_25_prompt_orchestration_rpc_layer.sql",
+              "sha256": "fa6f74a9bc2b0a08eb370d98fe3112a8984d6b34934dec7f3e70ecd871700fc7"
+            }
+          ]
+        },
+        {
+          "sourceVersion": "20261109110904",
+          "sourceName": "26_personal_workspace_sync",
+          "sourceStatementsMd5": "c5bc38d319702c486a032ce7bdeed648",
+          "targets": [
+            {
+              "file": "supabase/migrations/20261109120000_26_personal_workspace_sync.sql",
+              "sha256": "adf9719003e0df8739788c6d5213d16d4193c7ff9cb5b8b4c6a8235fdab9ba3d"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

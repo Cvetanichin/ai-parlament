@@ -7,7 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 // a direct hit with an already-persisted session) -- otherwise nothing
 // ever navigates away from /login once auth succeeds.
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuth();
+  const { session, loading, passwordRecovery } = useAuth();
+
+  if (session && passwordRecovery) return <Navigate to="/reset-password" replace />;
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading…</div>;

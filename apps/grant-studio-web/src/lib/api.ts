@@ -1,14 +1,6 @@
-import { supabase } from "@/lib/supabase";
-
-export class ApiError extends Error {
-  code: string;
-  status: number;
-  constructor(code: string, message: string, status: number) {
-    super(message);
-    this.code = code;
-    this.status = status;
-  }
-}
+import { supabase, supabaseConfig } from "@/lib/supabase";
+import { ApiError, responseError } from "./apiErrors";
+export { ApiError } from "./apiErrors";
 
 // Thin wrapper over supabase.functions.invoke -- the Authorization header is
 // attached automatically from the current session (docs/13-Frontend §2's
@@ -22,16 +14,7 @@ export async function callEdgeFunction<TResponse>(name: string, body: Record<str
     // the structured { error: { code, message } } body edge functions in
     // this repo return, not just the generic "non-2xx" message.
     const context = (error as { context?: Response }).context;
-    if (context) {
-      try {
-        const parsed = await context.clone().json();
-        if (parsed?.error?.code) {
-          throw new ApiError(parsed.error.code, parsed.error.message ?? error.message, context.status);
-        }
-      } catch {
-        // fall through to generic error below
-      }
-    }
+    if (context instanceof Response) throw await responseError(context, error.message);
     throw new ApiError("unknown", error.message, 500);
   }
   return data as TResponse;
@@ -45,19 +28,19 @@ export async function callEdgeFunction<TResponse>(name: string, body: Record<str
 export async function callEdgeFunctionGet<TResponse>(name: string, params: Record<string, string>): Promise<TResponse> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  const url = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`);
+  if (!token) throw new ApiError("unauthorized", "Sign in to continue.", 401);
+  const url = new URL(`${supabaseConfig.url}/functions/v1/${name}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 
   const res = await fetch(url.toString(), {
     method: "GET",
     headers: {
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      apikey: supabaseConfig.key,
+      Authorization: `Bearer ${token}`,
     },
   });
-  const parsed = await res.json();
   if (!res.ok) {
-    throw new ApiError(parsed?.error?.code ?? "unknown", parsed?.error?.message ?? res.statusText, res.status);
+    throw await responseError(res, res.statusText);
   }
-  return parsed as TResponse;
+  return await res.json() as TResponse;
 }

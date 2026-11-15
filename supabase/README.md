@@ -1,5 +1,11 @@
 # Implementation — Roadmap Phase 0 + 1
 
+Current Grant Studio staging/bootstrap instructions:
+[`docs/19-Deployment/GRANT_STUDIO_STAGING.md`](../docs/19-Deployment/GRANT_STUDIO_STAGING.md).
+The dated verification narrative below includes legacy project references;
+use that runbook and `supabase/staging/project.json` for current environment
+ownership, reproducible migration replay and history reconciliation.
+
 This is where Claude Code implements what's Approved in `../docs/`, per the
 governance model in the top-level `README.md`. Consolidated into this repo
 (`ai-parlament`) rather than a separate `parliamentary-ai-gov` repo, which

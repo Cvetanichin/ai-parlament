@@ -1,0 +1,47 @@
+name: Staging reproducibility
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - 'scripts/staging/**'
+      - '.github/workflows/staging-reproducibility.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - 'scripts/staging/**'
+      - '.github/workflows/staging-reproducibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb
+        with:
+          version: '3.1.0'
+      - name: Discover pinned CLI commands
+        run: |
+          supabase --version
+          supabase db start --help
+          supabase db reset --help
+          supabase db query --help
+      - name: Verify guarded history planner
+        run: node scripts/staging/history.test.mjs
+      - name: Verify staging function target (dry run)
+        run: node scripts/staging/deploy-functions.mjs
+      - name: Rebuild isolated database from committed migrations
+        run: |
+          supabase db start
+          supabase db reset --local
+      - name: Verify permissions, bootstrap and tenant isolation
+        run: docker exec -i supabase_db_ai-parlament psql --username=postgres --dbname=postgres --set=ON_ERROR_STOP=1 < supabase/tests/staging_reproducibility.sql

@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { supabase } from "@/lib/supabase";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { supabase, supabaseConfig, initialAuthLinkError } from "@/lib/supabase";
+import { authErrorMessage, parseEmailLink } from "@/lib/passwordRecovery";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,17 +11,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 type Mode = "sign-in" | "sign-up" | "forgot-password";
 
 export function Login() {
-  const [mode, setMode] = useState<Mode>("sign-in");
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { setPasswordRecovery } = useAuth();
+  const [mode, setMode] = useState<Mode>(params.get("mode") === "forgot-password" ? "forgot-password" : "sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialAuthLinkError);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [emailLink, setEmailLink] = useState("");
 
   const switchMode = (next: Mode) => {
     setMode(next);
     setError(null);
     setMessage(null);
+    setPassword("");
+    setEmailLink("");
   };
 
   const onSubmit = async (e: FormEvent) => {
@@ -27,41 +36,54 @@ export function Login() {
     setError(null);
     setMessage(null);
 
-    if (mode === "sign-in") {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) setError(signInError.message);
-    } else if (mode === "sign-up") {
-      // Explicit redirect rather than relying on the project's configured
-      // Site URL default — that default drifts per-environment (it was
-      // wrong for local dev before this fix) and window.location.origin is
-      // always correct for wherever this app is actually running.
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (signUpError) {
-        setError(signUpError.message);
-      } else if (data.session) {
-        // If email confirmation is ever turned off, signUp returns an active
-        // session immediately — nothing else to do here; RequireAuth's
-        // redirect takes over once useAuth picks up the session.
+    try {
+      if (mode === "sign-in") {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (signInError) throw signInError;
+      } else if (mode === "sign-up") {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(), password,
+          options: { emailRedirectTo: `${window.location.origin}/login` },
+        });
+        if (signUpError) throw signUpError;
+        if (!data.session) {
+          setMessage("Check your email to confirm your account, then sign in. If the link opens the wrong page, copy the original email link into the form below.");
+          setMode("sign-in");
+        }
       } else {
-        setMessage("Check your email to confirm your account, then sign in.");
-        setMode("sign-in");
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (resetError) throw resetError;
+        setMessage("If an account exists for that email, a reset link is on its way. Check your inbox and spam folder. If you have not created an account on this site, sign up first.");
       }
-    } else {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
-      });
-      if (resetError) {
-        setError(resetError.message);
-      } else {
-        setMessage("If an account exists for that email, a password reset link is on its way.");
-      }
+    } catch (cause) {
+      setError(authErrorMessage(cause));
+    } finally {
+      setSubmitting(false);
     }
+  };
 
-    setSubmitting(false);
+  const useEmailLink = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const link = parseEmailLink(emailLink, supabaseConfig.url, window.location.origin);
+      if (link.type === "recovery") setPasswordRecovery(true);
+      const result = "token_hash" in link
+        ? await supabase.auth.verifyOtp(link)
+        : await supabase.auth.setSession({ access_token: link.access_token, refresh_token: link.refresh_token });
+      if (result.error) throw result.error;
+      if (!result.data.session) throw new Error("This reset link could not establish a session. Request a fresh email.");
+      setEmailLink("");
+      navigate(link.type === "recovery" ? "/reset-password" : "/grant-studio", { replace: true });
+    } catch (cause) {
+      setPasswordRecovery(false);
+      setError(authErrorMessage(cause));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const title = mode === "sign-in" ? "Sign in" : mode === "sign-up" ? "Create account" : "Reset password";
@@ -83,7 +105,7 @@ export function Login() {
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             {mode !== "forgot-password" && (
               <div className="space-y-2">
@@ -91,6 +113,7 @@ export function Login() {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
                   required
                   minLength={6}
                   value={password}
@@ -98,12 +121,22 @@ export function Login() {
                 />
               </div>
             )}
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            {message && <p className="text-sm text-muted-foreground">{message}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? "Please wait…" : title}
             </Button>
           </form>
+
+          <details className="mt-4 text-sm text-muted-foreground">
+            <summary className="cursor-pointer">Email link opens the wrong page?</summary>
+            <p className="mt-2">Paste the original email link, or the full localhost address from the failed page (including everything after #). It is verified only with this Grant Studio backend. Keep it private.</p>
+            <form onSubmit={useEmailLink} className="mt-3 space-y-3">
+              <Label htmlFor="email-link">Confirmation or reset link</Label>
+              <Input id="email-link" type="password" autoComplete="off" required value={emailLink} onChange={(event) => setEmailLink(event.target.value)} />
+              <Button type="submit" variant="outline" disabled={submitting}>Use email link</Button>
+            </form>
+          </details>
 
           <div className="mt-4 flex flex-col gap-1 text-center text-sm text-muted-foreground">
             {mode === "sign-in" && (
@@ -119,6 +152,11 @@ export function Login() {
                   Forgot password?
                 </button>
               </>
+            )}
+            {mode === "forgot-password" && (
+              <button type="button" className="underline underline-offset-4" onClick={() => switchMode("sign-up")}>
+                New to this Grant Studio site? Sign up
+              </button>
             )}
             {mode !== "sign-in" && (
               <button type="button" className="underline underline-offset-4" onClick={() => switchMode("sign-in")}>
