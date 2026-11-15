@@ -19,7 +19,7 @@ const approval: ApprovalEvidence = {
 function expect(value: boolean, label: string): void {
   if (!value) throw new Error(label);
 }
-Deno.test("sending email is disabled without approval", () => {
+Deno.test("email sending is disabled even before requesting approval", () => {
   const outcome = assessAction(base, context, null);
   expect(!outcome.permitted && outcome.reason === "operation_disabled", "send forbidden");
 });

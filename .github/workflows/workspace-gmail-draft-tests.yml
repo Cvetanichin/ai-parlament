@@ -31,9 +31,10 @@ jobs:
             supabase/functions/_shared/actionApprovalPolicy.test.ts \
             supabase/functions/_shared/privateWorkspacePolicy.test.ts \
             supabase/functions/_shared/gmailDraftAdapter.test.ts
-      - name: Type-check pure modules and their tests
+      - name: Type-check modules and the Edge Function
         run: |
           deno check \
             supabase/functions/_shared/actionApprovalPolicy.test.ts \
             supabase/functions/_shared/privateWorkspacePolicy.test.ts \
-            supabase/functions/_shared/gmailDraftAdapter.test.ts
+            supabase/functions/_shared/gmailDraftAdapter.test.ts \
+            supabase/functions/workspace-gmail-draft/index.ts
