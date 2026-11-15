@@ -1,0 +1,15 @@
+{
+  "supabaseCliVersion": "3.1.0",
+  "stagingProjectRef": "dgwdtaoozlqfxgynrvkr",
+  "stagingProjectName": "ai-parlament-staging",
+  "legacyPersonalWorkspaceProjectRef": "zfadrhpnhejzbpnfizxu",
+  "frontendDirectory": "apps/grant-studio-web",
+  "functions": [
+    "eligibility-report-get",
+    "eligibility-report-run",
+    "workflow-research-run",
+    "workflow-governance-run",
+    "workflow-gate-decide"
+  ],
+  "previewRedirectPattern": "https://ai-parlament-*-vas-projects-d1a401e4.vercel.app/**"
+}

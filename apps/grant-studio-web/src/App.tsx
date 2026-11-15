@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/routes/RequireAuth";
 import { RedirectIfAuthed } from "@/routes/RedirectIfAuthed";
 import { Login } from "@/routes/Login";
+import { ResetPassword } from "@/routes/ResetPassword";
 import { GrantStudioHome } from "@/routes/GrantStudioHome";
 import { ComingSoon } from "@/routes/ComingSoon";
 
@@ -16,6 +17,7 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/login"
               element={

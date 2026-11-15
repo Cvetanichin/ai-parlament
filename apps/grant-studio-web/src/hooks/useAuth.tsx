@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { supabase, initialPasswordRecovery } from "@/lib/supabase";
 import type { OrganisationMembership, OrganisationRole } from "@/lib/types";
 
 interface AuthState {
   session: Session | null;
   loading: boolean;
+  initializing: boolean;
+  passwordRecovery: boolean;
+  setPasswordRecovery: (value: boolean) => void;
   memberships: OrganisationMembership[];
   isPlatformOperator: boolean;
   // Set when membership loading or organisation bootstrap fails (e.g. a
@@ -27,6 +30,8 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(initialPasswordRecovery);
   const [memberships, setMemberships] = useState<OrganisationMembership[]>([]);
   const [isPlatformOperator, setIsPlatformOperator] = useState(false);
   const [membershipError, setMembershipError] = useState<string | null>(null);
@@ -35,12 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) setSession(data.session);
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+      if (event === "SIGNED_OUT") setPasswordRecovery(false);
+      setSession(nextSession);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      setSession(data.session);
+      if (error) setMembershipError(error.message);
+    }).catch(() => {
+      if (active) setMembershipError("Unable to restore your session. Please sign in again.");
+    }).finally(() => {
+      if (active) setInitializing(false);
     });
 
     return () => {
@@ -50,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (initializing) return;
     const userId = session?.user?.id;
     if (!userId) {
       setMemberships([]);
@@ -110,12 +125,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       setIsPlatformOperator(Boolean(profileRes.data?.is_platform_operator));
       setLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setMembershipError("Unable to load your organisation. Check your connection and retry.");
+      setLoading(false);
     });
 
     return () => {
       active = false;
     };
-  }, [session?.user?.id, retryToken]);
+  }, [initializing, session?.user?.id, retryToken]);
 
   const retryMembershipLoad = () => setRetryToken((t) => t + 1);
 
@@ -130,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, loading, memberships, isPlatformOperator, membershipError, retryMembershipLoad, hasRole, signOut }}
+      value={{ session, loading: initializing || loading, initializing, passwordRecovery, setPasswordRecovery, memberships, isPlatformOperator, membershipError, retryMembershipLoad, hasRole, signOut }}
     >
       {children}
     </AuthContext.Provider>
